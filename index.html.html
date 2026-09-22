@@ -1,0 +1,1648 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Análisis de luminosidad L* (CIELAB) — Curva de calibración por imagen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bench:#e6eaed; --sheet:#ffffff; --sheet2:#f3f6f8; --ink:#13202a; --ink2:#465764; --ink3:#6c7c88;
+  --rule:#d5dce2; --rule2:#b3bfc8;
+  --accent:#0a766f; --accent2:#075a55; --accentSoft:#dcf0ee; --onAccent:#ffffff;
+  --warn:#8a5200; --warnSoft:#fcf0d9; --err:#a82117; --errSoft:#fce6e3; --ok:#1a7239; --okSoft:#e0f2e6;
+  --sample:#c2570c; --roi:#ff2d75;
+  --side:#111e28; --sideInk:#d6e1e8; --sideDim:#8a9eac; --sideRule:#233544;
+  --serif:"Source Serif 4",Georgia,"Times New Roman",serif;
+  --sans:"Instrument Sans",system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bench:#0b1116; --sheet:#141d24; --sheet2:#1a252d; --ink:#e6eef2; --ink2:#a9b9c4; --ink3:#7f909c;
+    --rule:#26343f; --rule2:#3a4c58;
+    --accent:#3cc4bb; --accent2:#66d8d0; --accentSoft:#12332f; --onAccent:#04201e;
+    --warn:#f0b64a; --warnSoft:#33270e; --err:#ff8f85; --errSoft:#3a1714; --ok:#72d692; --okSoft:#12301c;
+    --sample:#f5a24d;
+    --side:#080e13; --sideRule:#1a2934;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bench:#0b1116; --sheet:#141d24; --sheet2:#1a252d; --ink:#e6eef2; --ink2:#a9b9c4; --ink3:#7f909c;
+  --rule:#26343f; --rule2:#3a4c58;
+  --accent:#3cc4bb; --accent2:#66d8d0; --accentSoft:#12332f; --onAccent:#04201e;
+  --warn:#f0b64a; --warnSoft:#33270e; --err:#ff8f85; --errSoft:#3a1714; --ok:#72d692; --okSoft:#12301c;
+  --sample:#f5a24d;
+  --side:#080e13; --sideRule:#1a2934;
+  color-scheme:dark;
+}
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px);height:100%}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;min-height:100%;background:var(--bench);color:var(--ink);font:15px/1.5 var(--sans);-webkit-text-size-adjust:100%;font-variant-numeric:tabular-nums}
+h1,h2,h3{font-family:var(--serif);font-weight:600;line-height:1.2;margin:0;letter-spacing:-.005em}
+h1{font-size:1.9rem;margin-bottom:6px}
+h2{font-size:1.25rem}
+h3{font-size:1.05rem}
+p{margin:0 0 .6em}
+button,input,select,textarea{font:inherit;color:inherit}
+.skip{position:absolute;left:-999px;top:0;background:var(--accent);color:var(--onAccent);padding:8px 12px;z-index:100}
+.skip:focus{left:8px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.app{display:grid;grid-template-columns:268px minmax(0,1fr);min-height:100vh}
+.side{background:var(--side);color:var(--sideInk);display:flex;flex-direction:column;gap:18px;position:sticky;top:env(safe-area-inset-top,0px);height:100vh;max-height:100dvh;overflow-y:auto;padding:22px 16px 16px}
+.brand{display:flex;gap:12px;align-items:center}
+.brand .mark{width:38px;height:38px;border-radius:4px;flex:none;border:1px solid var(--sideRule)}
+.brand b{display:block;font-family:var(--serif);font-size:1.08rem;line-height:1.15;font-weight:600}
+.brand span{font-size:.78rem;color:var(--sideDim)}
+.proj{border-top:1px solid var(--sideRule);border-bottom:1px solid var(--sideRule);padding:10px 0;font-size:.85rem}
+.proj .pn{font-weight:600;word-break:break-word}
+.proj .pm{color:var(--sideDim);font-size:.78rem}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav button{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 10px;border-radius:5px;font-size:.92rem;color:var(--sideInk);width:100%}
+.nav button:hover{background:rgba(255,255,255,.06)}
+.nav button[aria-current="page"]{background:rgba(255,255,255,.12);font-weight:600}
+.nav button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.nav .ni{width:9px;height:9px;border-radius:50%;border:1.5px solid var(--sideDim);flex:none}
+.nav [data-state="done"] .ni{background:var(--accent);border-color:var(--accent)}
+.nav [data-state="warn"] .ni{background:#f0b64a;border-color:#f0b64a}
+.nav [data-state="locked"]{color:var(--sideDim)}
+.scale{margin-top:auto}
+.scale h4{margin:0 0 8px;font-size:.78rem;font-weight:600;color:var(--sideDim)}
+.ramp{position:relative;height:16px;border-radius:2px;border:1px solid var(--sideRule)}
+.ramp-wrap{position:relative;padding-bottom:22px}
+.ramp .mk{position:absolute;top:-5px;width:0;height:0;transform:translateX(-50%)}
+.ramp .mk i{position:absolute;left:-5px;top:0;width:10px;height:10px;border:2px solid #fff;background:#111;border-radius:50%;box-shadow:0 0 0 1px #111}
+.ramp .mk.blank i{background:#fff;border-color:#111;box-shadow:0 0 0 1px #fff}
+.ramp .mk.smp i{border-radius:1px;transform:rotate(45deg);background:var(--sample);border-color:#fff;box-shadow:0 0 0 1px #000}
+.ramp .mk.live i{background:var(--roi);border-color:#fff;width:12px;height:12px;left:-6px;top:-1px;box-shadow:0 0 0 1px #000}
+.ramp-ticks{position:absolute;left:0;right:0;top:20px;height:14px;font-size:.7rem;color:var(--sideDim)}
+.ramp-ticks span{position:absolute;transform:translateX(-50%)}
+.ramp-ticks span:first-child{transform:none}
+.ramp-ticks span:last-child{transform:translateX(-100%)}
+.legend-s{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:.72rem;color:var(--sideDim)}
+.side-foot{display:flex;flex-direction:column;gap:8px}
+.side-foot .btn{background:transparent;color:var(--sideInk);border-color:var(--sideDim);width:100%}
+.side-foot .btn:hover{background:rgba(255,255,255,.08)}
+.dirty{font-size:.76rem;color:#f0b64a;min-height:1.1em}
+.dirty.clean{color:var(--sideDim)}
+
+.main{padding:20px clamp(16px,3vw,40px) 64px;max-width:1280px;width:100%}
+.stepbar{margin-bottom:18px}
+.stepbar .now{margin:0 0 8px;color:var(--ink2);font-size:.9rem}
+.stepbar .now b{color:var(--ink)}
+.steps{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.steps li{border-top:3px solid var(--rule2);padding-top:6px;font-size:.78rem;color:var(--ink3);min-width:0}
+.steps li[data-state="done"]{border-top-color:var(--accent);color:var(--ink2)}
+.steps li[data-state="current"]{border-top-color:var(--ink);color:var(--ink);font-weight:600}
+.steps .sl{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lede{color:var(--ink2);max-width:74ch;margin-bottom:18px}
+.muted{color:var(--ink2)}
+.small{font-size:.85rem}
+.block{background:var(--sheet);border:1px solid var(--rule);border-radius:4px;padding:18px 20px;margin:0 0 18px}
+.block-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px;margin-bottom:12px}
+.block-head h2{margin:0}
+.actions{display:flex;flex-wrap:wrap;gap:8px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}
+
+.btn{border:1px solid var(--rule2);background:var(--sheet);color:var(--ink);padding:8px 14px;border-radius:6px;cursor:pointer;font-weight:600;font-size:.9rem;line-height:1.2}
+.btn:hover{background:var(--sheet2)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--onAccent)}
+.btn.primary:hover{background:var(--accent2);border-color:var(--accent2)}
+.btn.danger{color:var(--err);border-color:var(--err)}
+.btn.sm{padding:5px 9px;font-size:.82rem}
+.btn.link{border:0;background:none;padding:2px 4px;color:var(--accent);text-decoration:underline}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+.field{display:flex;flex-direction:column;gap:4px;margin-bottom:12px;font-size:.88rem;font-weight:600}
+.field small{font-weight:400;color:var(--ink3)}
+input[type=text],input[type=number],select,textarea{border:1px solid var(--rule2);background:var(--sheet);border-radius:5px;padding:7px 9px;font-weight:400;width:100%;min-width:0}
+input[aria-invalid="true"]{border-color:var(--err);background:var(--errSoft)}
+textarea{resize:vertical;min-height:64px}
+.inline{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.inline .field{margin:0}
+.check{display:flex;gap:8px;align-items:center;font-size:.9rem;font-weight:400}
+.seg{display:inline-flex;flex-wrap:wrap;border:1px solid var(--rule2);border-radius:6px;overflow:hidden}
+.seg label{cursor:pointer;position:relative}
+.seg input{position:absolute;opacity:0;inset:0;cursor:pointer}
+.seg span{display:block;padding:7px 12px;font-size:.86rem;font-weight:600;color:var(--ink2);border-right:1px solid var(--rule2)}
+.seg label:last-child span{border-right:0}
+.seg input:checked+span{background:var(--ink);color:var(--sheet)}
+.seg input:focus-visible+span{outline:2px solid var(--accent);outline-offset:-2px}
+.seg label.off{opacity:.4}
+.seg label.off input{cursor:not-allowed}
+.chip{display:inline-block;padding:2px 9px;border-radius:99px;font-size:.78rem;font-weight:600;background:var(--sheet2);color:var(--ink2);border:1px solid var(--rule)}
+.chip.ok{background:var(--okSoft);color:var(--ok);border-color:transparent}
+.chip.warn{background:var(--warnSoft);color:var(--warn);border-color:transparent}
+.chip.err{background:var(--errSoft);color:var(--err);border-color:transparent}
+.banner{border-left:4px solid var(--rule2);background:var(--sheet2);padding:9px 12px;margin:0 0 10px;border-radius:0 4px 4px 0;font-size:.9rem}
+.banner.info{border-color:var(--accent);background:var(--accentSoft)}
+.banner.warn{border-color:var(--warn);background:var(--warnSoft);color:var(--warn)}
+.banner.err{border-color:var(--err);background:var(--errSoft);color:var(--err)}
+.banner.ok{border-color:var(--ok);background:var(--okSoft);color:var(--ok)}
+.banner b{font-weight:700}
+.banner ul{margin:4px 0 0;padding-left:18px}
+.empty{padding:26px 18px;border:1px dashed var(--rule2);border-radius:4px;text-align:center;color:var(--ink2)}
+.empty h3{margin-bottom:6px;color:var(--ink)}
+
+.tablewrap{overflow-x:auto;max-width:100%}
+table.data{border-collapse:collapse;width:100%;font-size:.88rem}
+table.data th{text-align:left;font-weight:600;color:var(--ink2);border-bottom:2px solid var(--rule2);padding:7px 10px;white-space:nowrap;font-size:.82rem}
+table.data td{border-bottom:1px solid var(--rule);padding:7px 10px;vertical-align:middle}
+table.data .n{text-align:right;white-space:nowrap}
+table.data th.n{text-align:right}
+table.data tr.out td{background:var(--warnSoft)}
+table.data input{padding:4px 6px;width:100px;text-align:right}
+table.data input.obs{width:100%;min-width:150px;text-align:left}
+.thumb{width:56px;height:40px;object-fit:cover;border-radius:3px;border:1px solid var(--rule);display:block;background:var(--sheet2)}
+.tag{display:inline-block;font-size:.74rem;font-weight:600;padding:1px 7px;border-radius:3px;margin:0 4px 3px 0;background:var(--warnSoft);color:var(--warn)}
+.tag.info{background:var(--accentSoft);color:var(--accent2)}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:4px;overflow:hidden;margin:0 0 12px}
+.metrics>div{background:var(--sheet);padding:9px 12px}
+.metrics dt{font-size:.76rem;color:var(--ink2);margin:0}
+.metrics dd{margin:0;font-family:var(--serif);font-size:1.25rem;font-weight:500;overflow-wrap:anywhere}
+.metrics dd small{font-family:var(--sans);font-size:.75rem;color:var(--ink3);font-weight:400}
+.eq{font-family:var(--serif);font-size:1.2rem;padding:10px 12px;background:var(--sheet2);border:1px solid var(--rule);border-radius:4px;margin-bottom:12px;overflow-x:auto;white-space:nowrap}
+.chartbox{border:1px solid var(--rule);border-radius:4px;background:var(--sheet);padding:6px;overflow:hidden}
+.chartbox canvas{display:block;width:100%}
+
+.wb{border:1px solid var(--rule2);background:var(--sheet);border-radius:4px;padding:18px 20px;margin:0 0 18px}
+.wb-head{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;margin-bottom:14px}
+.wb-head h2{margin-right:6px}
+.wb-grid{display:grid;grid-template-columns:minmax(260px,350px) minmax(0,1fr);gap:22px}
+.wb fieldset{border:1px solid var(--rule);border-radius:4px;padding:10px 12px 12px;margin:0 0 12px;min-width:0}
+.wb legend{font-weight:600;font-size:.9rem;padding:0 6px}
+.drop{display:flex;flex-direction:column;gap:2px;align-items:center;justify-content:center;text-align:center;border:2px dashed var(--rule2);border-radius:6px;padding:16px 10px;cursor:pointer;margin-bottom:12px;color:var(--ink2);font-size:.85rem}
+.drop strong{color:var(--accent);font-size:.98rem}
+.drop:hover,.drop.over{border-color:var(--accent);background:var(--accentSoft)}
+.stack{position:relative;width:fit-content;max-width:100%;margin:0 auto;background:var(--sheet2);border:1px solid var(--rule);min-width:min(100%,280px);min-height:180px}
+.stack canvas{display:block;max-width:100%;max-height:64vh;width:auto;height:auto}
+.stack canvas#wbOver{position:absolute;left:0;top:0;width:100%;height:100%;max-height:none}
+.stack canvas#wbOver.draw{cursor:crosshair;touch-action:none}
+.stack-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--ink3);font-size:.9rem;pointer-events:none}
+.hint{font-size:.82rem;color:var(--ink2);margin:8px 0 12px;min-height:1.2em}
+.tools{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.tools .btn[aria-pressed="true"]{background:var(--ink);color:var(--sheet);border-color:var(--ink)}
+.wb-foot{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px;padding-top:14px;border-top:1px solid var(--rule)}
+.busy{opacity:.6;pointer-events:none}
+.trace{list-style:none;margin:0;padding:0}
+.trace li{display:grid;grid-template-columns:150px 1fr;gap:8px;padding:8px 0;border-bottom:1px solid var(--rule);font-size:.88rem}
+.trace li b{color:var(--ink2);font-weight:600}
+.trace code{font-family:var(--mono);font-size:.8rem;overflow-wrap:anywhere}
+.formgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:0 16px}
+.flow{margin:0;padding-left:20px}
+.flow li{margin:0 0 8px}
+.bigramp{height:34px;border-radius:3px;border:1px solid var(--rule2);position:relative;margin-bottom:26px}
+.bigramp span{position:absolute;top:38px;font-size:.78rem;color:var(--ink2);transform:translateX(-50%)}
+.bigramp span:first-child{transform:none}
+.bigramp span:last-child{transform:translateX(-100%)}
+
+dialog{border:1px solid var(--rule2);border-radius:6px;background:var(--sheet);color:var(--ink);padding:0;max-width:min(880px,94vw);width:100%}
+dialog::backdrop{background:rgba(6,12,16,.6)}
+.dlg-body{padding:20px 22px;max-height:88vh;overflow:auto}
+.dlg-foot{display:flex;justify-content:flex-end;gap:10px;margin-top:16px}
+#toasts{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:8px;z-index:60;max-width:min(380px,calc(100vw - 32px))}
+.toast{background:var(--ink);color:var(--sheet);padding:10px 14px;border-radius:6px;font-size:.88rem;box-shadow:0 6px 24px rgba(0,0,0,.25)}
+.toast.err{background:var(--err);color:#fff}
+.toast.ok{background:var(--ok);color:#fff}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .toast.ok,:root:not([data-theme="light"]) .toast.err{color:#06120b}}
+:root[data-theme="dark"] .toast.ok,:root[data-theme="dark"] .toast.err{color:#06120b}
+
+@media (max-width:920px){
+  .app{grid-template-columns:1fr}
+  .side{position:static;height:auto;max-height:none;padding:14px 14px 12px;gap:12px}
+  .nav{flex-direction:row;overflow-x:auto;padding-bottom:4px}
+  .nav button{white-space:nowrap;width:auto;flex:none}
+  .scale{display:none}
+  .side-foot{flex-direction:row;align-items:center}
+  .side-foot .btn{width:auto}
+  .wb-grid{grid-template-columns:1fr}
+  .steps .sl{display:none}
+  .steps li[data-state="current"] .sl{display:none}
+  .trace li{grid-template-columns:1fr}
+  h1{font-size:1.55rem}
+}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Saltar al contenido</a>
+<div class="app">
+  <aside class="side" id="side">
+    <div class="brand">
+      <div class="mark" id="brandMark" aria-hidden="true"></div>
+      <div><b>Análisis de luminosidad L*</b><span>Calibración por imagen · CIELAB</span></div>
+    </div>
+    <div class="proj" id="projBox"></div>
+    <nav class="nav" id="nav" aria-label="Menú principal"></nav>
+    <div class="scale" id="scaleBox"></div>
+    <div class="side-foot">
+      <button class="btn" id="btnSave" type="button">Guardar proyecto</button>
+      <span class="dirty clean" id="dirtyChip" aria-live="polite"></span>
+    </div>
+  </aside>
+  <main class="main" id="main" tabindex="-1">
+    <div class="stepbar" id="stepbar"></div>
+    <div id="view"></div>
+  </main>
+</div>
+<div id="toasts" aria-live="polite"></div>
+<dialog id="dlg" aria-modal="true"></dialog>
+<input type="file" id="projFile" accept=".json,application/json" hidden>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+'use strict';
+/* =====================================================================
+   1. UTILIDADES
+   ===================================================================== */
+const $=(s,r=document)=>r.querySelector(s);
+const $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const nowISO=()=>new Date().toISOString();
+const isNum=v=>typeof v==='number'&&isFinite(v);
+const mean=a=>a.reduce((s,v)=>s+v,0)/a.length;
+const pad2=n=>String(n).padStart(2,'0');
+function fmtDate(iso){try{return new Date(iso).toLocaleString('es',{dateStyle:'medium',timeStyle:'short'})}catch(e){return iso||''}}
+function stamp(){const d=new Date();return d.getFullYear()+pad2(d.getMonth()+1)+pad2(d.getDate())+'-'+pad2(d.getHours())+pad2(d.getMinutes())}
+function uid(p){const d=new Date();return p+'-'+d.getFullYear()+pad2(d.getMonth()+1)+pad2(d.getDate())+'-'+pad2(d.getHours())+pad2(d.getMinutes())+pad2(d.getSeconds())+'-'+Math.random().toString(36).slice(2,6)}
+function slug(s){return String(s||'proyecto').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9]+/g,'-').replace(/^-+|-+$/g,'').toLowerCase()||'proyecto'}
+function fx(v,d=2){return isNum(v)?v.toFixed(d):'—'}
+function sig(v,n=4){
+  if(!isNum(v))return '—'; if(v===0)return '0';
+  const a=Math.abs(v);
+  if(a<1e-4||a>=1e7)return v.toExponential(n-1).replace('e+','e');
+  return String(Number(v.toPrecision(n)));
+}
+function parseNum(s){
+  if(typeof s==='number')return s;
+  const t=String(s==null?'':s).trim().replace(/\s/g,'').replace(',','.');
+  if(t==='')return NaN;
+  return /^[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$/.test(t)?parseFloat(t):NaN;
+}
+function fmtBytes(b){return b<1024?b+' B':b<1048576?(b/1024).toFixed(0)+' KB':(b/1048576).toFixed(1)+' MB'}
+
+function toast(msg,type){
+  const t=document.createElement('div');t.className='toast'+(type?' '+type:'');t.textContent=msg;
+  $('#toasts').appendChild(t);setTimeout(()=>t.remove(),type==='err'?7000:4200);
+}
+function askConfirm(title,msg,ok,danger){
+  return new Promise(res=>{
+    const d=$('#dlg');let done=false;
+    d.innerHTML='<div class="dlg-body" style="max-width:520px"><h2>'+esc(title)+'</h2><p style="margin-top:10px">'+msg+'</p><div class="dlg-foot"><button class="btn" data-r="0" type="button">Cancelar</button><button class="btn '+(danger?'danger':'primary')+'" data-r="1" type="button">'+esc(ok||'Aceptar')+'</button></div></div>';
+    const fin=v=>{if(done)return;done=true;if(d.open)d.close();res(v)};
+    $$('[data-r]',d).forEach(b=>b.onclick=()=>fin(b.dataset.r==='1'));
+    d.oncancel=()=>fin(false);d.onclose=()=>fin(false);
+    d.showModal();
+  });
+}
+function openDlg(html){const d=$('#dlg');d.innerHTML='<div class="dlg-body">'+html+'</div>';d.onclose=null;d.oncancel=null;if(!d.open)d.showModal();return d}
+function closeDlg(){const d=$('#dlg');if(d.open)d.close()}
+$('#dlg').addEventListener('click',e=>{if(e.target===e.currentTarget)closeDlg()});
+
+/* Guardado de archivos: capacidad "downloads" del visor; respaldo con <a download> */
+let _dl=null;
+function getDownloads(){
+  if(!_dl){_dl=(window.claude&&typeof window.claude.use==='function')?Promise.resolve(window.claude.use('downloads')).catch(()=>null):Promise.resolve(null)}
+  return _dl;
+}
+async function saveFile(filename,data,mime){
+  const blob=data instanceof Blob?data:new Blob([data],{type:mime||'application/octet-stream'});
+  const dl=await getDownloads();
+  if(dl){
+    try{await dl.save({filename:filename,data:blob});toast('Archivo guardado: '+filename,'ok');return true}
+    catch(e){
+      if(e&&e.code==='declined'){toast('Guardado cancelado.');return false}
+      toast('No se pudo guardar '+filename+(e&&e.message?' ('+e.message+')':''),'err');return false;
+    }
+  }
+  try{
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;document.body.appendChild(a);a.click();
+    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},2500);toast('Archivo generado: '+filename,'ok');return true;
+  }catch(e){toast('No se pudo generar el archivo.','err');return false}
+}
+
+/* =====================================================================
+   2. COLORIMETRÍA: sRGB (D65) → CIELAB
+   ===================================================================== */
+const LIN=new Float32Array(256);
+for(let i=0;i<256;i++){const c=i/255;LIN[i]=c<=0.04045?c/12.92:Math.pow((c+0.055)/1.055,2.4)}
+const XN=0.95047,YN=1.0,ZN=1.08883,EPS=216/24389,KAP=24389/27;
+const labf=t=>t>EPS?Math.cbrt(t):(KAP*t+16)/116;
+
+function prepareImage(img,maxDim){
+  maxDim=maxDim||1200;
+  const nw=img.naturalWidth,nh=img.naturalHeight;
+  const s=Math.min(1,maxDim/Math.max(nw,nh));
+  const W=Math.max(1,Math.round(nw*s)),H=Math.max(1,Math.round(nh*s));
+  const cv=document.createElement('canvas');cv.width=W;cv.height=H;
+  const g=cv.getContext('2d',{willReadFrequently:true});
+  g.imageSmoothingEnabled=true;g.imageSmoothingQuality='high';
+  g.drawImage(img,0,0,W,H);
+  const d=g.getImageData(0,0,W,H).data;
+  const N=W*H,L=new Float32Array(N),A=new Float32Array(N),B=new Float32Array(N);
+  let valid=null;
+  for(let i=0,p=0;i<N;i++,p+=4){
+    if(d[p+3]<128){if(!valid){valid=new Uint8Array(N).fill(1)}valid[i]=0}
+    const r=LIN[d[p]],gg=LIN[d[p+1]],b=LIN[d[p+2]];
+    const X=0.4124564*r+0.3575761*gg+0.1804375*b;
+    const Y=0.2126729*r+0.7151522*gg+0.0721750*b;
+    const Z=0.0193339*r+0.1191920*gg+0.9503041*b;
+    const fx_=labf(X/XN),fy=labf(Y/YN),fz=labf(Z/ZN);
+    L[i]=116*fy-16;A[i]=500*(fx_-fy);B[i]=200*(fy-fz);
+  }
+  return {W,H,L,A,B,valid,canvas:cv,scale:s};
+}
+
+function computeStats(prep,mask){
+  const {L,A,B,valid}=prep,N=L.length;
+  let n=0,sL=0,sA=0,sB=0,mn=Infinity,mx=-Infinity;
+  for(let i=0;i<N;i++){
+    if(!mask[i]||(valid&&!valid[i]))continue;
+    n++;const l=L[i];sL+=l;sA+=A[i];sB+=B[i];if(l<mn)mn=l;if(l>mx)mx=l;
+  }
+  if(!n)return null;
+  const mL=sL/n,mA=sA/n,mB=sB/n;let qL=0,qA=0,qB=0;
+  for(let i=0;i<N;i++){
+    if(!mask[i]||(valid&&!valid[i]))continue;
+    const a=L[i]-mL,b=A[i]-mA,c=B[i]-mB;qL+=a*a;qA+=b*b;qB+=c*c;
+  }
+  const dv=n>1?n-1:1;
+  return {n,meanL:mL,sdL:Math.sqrt(qL/dv),minL:mn,maxL:mx,meanA:mA,sdA:Math.sqrt(qA/dv),meanB:mB,sdB:Math.sqrt(qB/dv)};
+}
+function histogramL(prep,mask,stats,bins){
+  bins=bins||40;const h=new Array(bins).fill(0);
+  const lo=stats.minL,hi=stats.maxL,span=hi-lo;
+  const {L,valid}=prep;
+  for(let i=0;i<L.length;i++){
+    if(!mask[i]||(valid&&!valid[i]))continue;
+    let k=span>0?Math.floor((L[i]-lo)/span*bins):0;if(k>=bins)k=bins-1;h[k]++;
+  }
+  return {h,lo,hi};
+}
+
+/* ---- Región de interés ---- */
+function otsuL(prep){
+  const {L,valid}=prep,hist=new Float64Array(256);let tot=0;
+  for(let i=0;i<L.length;i++){
+    if(valid&&!valid[i])continue;
+    let k=Math.floor(L[i]/100*256);if(k<0)k=0;if(k>255)k=255;hist[k]++;tot++;
+  }
+  let sum=0;for(let t=0;t<256;t++)sum+=t*hist[t];
+  let sB=0,wB=0,best=-1,thr=127;
+  for(let t=0;t<256;t++){
+    wB+=hist[t];if(!wB)continue;const wF=tot-wB;if(!wF)break;
+    sB+=t*hist[t];const mB=sB/wB,mF=(sum-sB)/wF,v=wB*wF*(mB-mF)*(mB-mF);
+    if(v>best){best=v;thr=t}
+  }
+  return (thr+1)/256*100;
+}
+function largestComponent(bin,W,H){
+  const N=W*H,seen=new Uint8Array(N),stack=new Int32Array(N);
+  let bestStart=-1,bestSize=0;
+  for(let s=0;s<N;s++){
+    if(!bin[s]||seen[s])continue;
+    let sp=0,size=0;stack[sp++]=s;seen[s]=1;
+    while(sp){
+      const i=stack[--sp];size++;const x=i%W;
+      if(x>0&&bin[i-1]&&!seen[i-1]){seen[i-1]=1;stack[sp++]=i-1}
+      if(x<W-1&&bin[i+1]&&!seen[i+1]){seen[i+1]=1;stack[sp++]=i+1}
+      if(i>=W&&bin[i-W]&&!seen[i-W]){seen[i-W]=1;stack[sp++]=i-W}
+      if(i<N-W&&bin[i+W]&&!seen[i+W]){seen[i+W]=1;stack[sp++]=i+W}
+    }
+    if(size>bestSize){bestSize=size;bestStart=s}
+  }
+  if(bestStart<0)return null;
+  const out=new Uint8Array(N),seen2=new Uint8Array(N);let sp=0;stack[sp++]=bestStart;seen2[bestStart]=1;
+  while(sp){
+    const i=stack[--sp];out[i]=1;const x=i%W;
+    if(x>0&&bin[i-1]&&!seen2[i-1]){seen2[i-1]=1;stack[sp++]=i-1}
+    if(x<W-1&&bin[i+1]&&!seen2[i+1]){seen2[i+1]=1;stack[sp++]=i+1}
+    if(i>=W&&bin[i-W]&&!seen2[i-W]){seen2[i-W]=1;stack[sp++]=i-W}
+    if(i<N-W&&bin[i+W]&&!seen2[i+W]){seen2[i+W]=1;stack[sp++]=i+W}
+  }
+  return out;
+}
+function erode(mask,W,H,passes){
+  let cur=mask;
+  for(let k=0;k<passes;k++){
+    const nx=new Uint8Array(W*H);let any=false;
+    for(let y=1;y<H-1;y++){
+      const r=y*W;
+      for(let x=1;x<W-1;x++){
+        const i=r+x;
+        if(cur[i]&&cur[i-1]&&cur[i+1]&&cur[i-W]&&cur[i+W]){nx[i]=1;any=true}
+      }
+    }
+    cur=nx;if(!any)break;
+  }
+  return cur;
+}
+function autoDetect(prep,p){
+  const {W,H,L,valid}=prep,N=W*H;
+  const thr=p.otsu?otsuL(prep):p.threshold;
+  const bin=new Uint8Array(N);
+  for(let i=0;i<N;i++){
+    if(valid&&!valid[i])continue;
+    bin[i]=p.mode==='dark'?(L[i]<thr?1:0):(L[i]>thr?1:0);
+  }
+  let mask=largestComponent(bin,W,H);
+  if(!mask)return {mask:null,threshold:thr};
+  if(p.erosion>0){
+    let area=0;for(let i=0;i<N;i++)if(mask[i])area++;
+    const passes=Math.min(200,Math.round(p.erosion/100*Math.sqrt(area/Math.PI)));
+    if(passes>0)mask=erode(mask,W,H,passes);
+  }
+  let n=0;for(let i=0;i<N;i++)if(mask[i])n++;
+  if(!n)return {mask:null,threshold:thr};
+  return {mask,threshold:thr};
+}
+function roiToMask(roi,prep){
+  const {W,H}=prep;
+  if(roi.type==='auto')return autoDetect(prep,roi).mask;
+  const c=document.createElement('canvas');c.width=W;c.height=H;
+  const g=c.getContext('2d',{willReadFrequently:true});
+  g.fillStyle='#fff';g.beginPath();
+  if(roi.type==='rect'){
+    const x=Math.min(roi.x0,roi.x1)*W,y=Math.min(roi.y0,roi.y1)*H;
+    g.rect(x,y,Math.abs(roi.x1-roi.x0)*W,Math.abs(roi.y1-roi.y0)*H);
+  }else if(roi.type==='circle'){
+    g.arc(roi.cx*W,roi.cy*H,roi.r*W,0,Math.PI*2);
+  }else if(roi.type==='polygon'){
+    roi.pts.forEach((p,i)=>i?g.lineTo(p[0]*W,p[1]*H):g.moveTo(p[0]*W,p[1]*H));g.closePath();
+  }
+  g.fill();
+  const d=g.getImageData(0,0,W,H).data,m=new Uint8Array(W*H);
+  for(let i=0;i<m.length;i++)m[i]=d[i*4+3]>127?1:0;
+  return m;
+}
+function buildTint(mask,W,H){
+  const c=document.createElement('canvas');c.width=W;c.height=H;
+  const g=c.getContext('2d'),id=g.createImageData(W,H),d=id.data;
+  for(let y=0;y<H;y++){
+    for(let x=0;x<W;x++){
+      const i=y*W+x;if(!mask[i])continue;
+      const edge=x<2||y<2||x>=W-2||y>=H-2||!mask[i-1]||!mask[i+1]||!mask[i-W]||!mask[i+W]||!mask[i-2]||!mask[i+2]||!mask[i-2*W]||!mask[i+2*W];
+      const p=i*4;d[p]=255;d[p+1]=45;d[p+2]=117;d[p+3]=edge?255:70;
+    }
+  }
+  g.putImageData(id,0,0);return c;
+}
+function maskBBox(mask,W,H){
+  let x0=W,y0=H,x1=-1,y1=-1;
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++)if(mask[y*W+x]){if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y}
+  return x1<0?null:{x0:x0/W,y0:y0/H,x1:(x1+1)/W,y1:(y1+1)/H};
+}
+
+/* =====================================================================
+   3. PARÁMETROS, AJUSTES Y MÉTODOS LOD (registros ampliables)
+   ===================================================================== */
+const PARAMS={
+  L:{key:'L',label:'L*',mean:'meanL',sd:'sdL',name:'Luminosidad'},
+  a:{key:'a',label:'a*',mean:'meanA',sd:'sdA',name:'Eje verde–rojo'},
+  b:{key:'b',label:'b*',mean:'meanB',sd:'sdB',name:'Eje azul–amarillo'}
+};
+const FIT_METHODS={
+  linear:{label:'Lineal (mínimos cuadrados)',deg:1,minPoints:3},
+  quadratic:{label:'Polinomio de 2.º grado',deg:2,minPoints:4}
+};
+const LOD_METHODS={
+  blank_sd:{label:'k · σ del blanco / pendiente',formula:'LOD = k · s(blanco) / |m|',k:3,
+    desc:'σ = desviación estándar de L* de los píxeles de la región del blanco.'},
+  resid_sd:{label:'k · σ residual de la regresión / pendiente',formula:'LOD = k · s(y/x) / |m|',k:3.3,
+    desc:'σ = desviación estándar residual del ajuste (error típico de la regresión).'},
+  intercept_sd:{label:'k · σ del intercepto / pendiente',formula:'LOD = k · s(b) / |m|',k:3.3,linearOnly:true,
+    desc:'σ = error estándar del intercepto del ajuste lineal.'}
+};
+const MIN_REC_POINTS=5;
+const MSG_OUT='El resultado se encuentra fuera del rango de calibración y debe interpretarse con precaución.';
+
+function solveSys(A,bv){
+  const n=A.length,M=A.map((r,i)=>r.concat([bv[i]]));
+  for(let i=0;i<n;i++){
+    let piv=i;for(let r=i+1;r<n;r++)if(Math.abs(M[r][i])>Math.abs(M[piv][i]))piv=r;
+    if(Math.abs(M[piv][i])<1e-14)return null;
+    const t=M[i];M[i]=M[piv];M[piv]=t;
+    for(let r=i+1;r<n;r++){const f=M[r][i]/M[i][i];for(let c=i;c<=n;c++)M[r][c]-=f*M[i][c]}
+  }
+  const x=new Array(n);
+  for(let i=n-1;i>=0;i--){let s=M[i][n];for(let c=i+1;c<n;c++)s-=M[i][c]*x[c];x[i]=s/M[i][i]}
+  return x;
+}
+function polyfit(xs,ys,deg){
+  const n=xs.length,xm=mean(xs),m=deg+1;
+  const A=Array.from({length:m},()=>new Array(m).fill(0)),bv=new Array(m).fill(0);
+  for(let k=0;k<n;k++){
+    const u=xs[k]-xm,pw=[1];for(let j=1;j<=2*deg;j++)pw[j]=pw[j-1]*u;
+    for(let i=0;i<m;i++){bv[i]+=ys[k]*pw[i];for(let j=0;j<m;j++)A[i][j]+=pw[i+j]}
+  }
+  const c=solveSys(A,bv);if(!c)return null;
+  return deg===1?[c[0]-c[1]*xm,c[1]]:[c[0]-c[1]*xm+c[2]*xm*xm,c[1]-2*c[2]*xm,c[2]];
+}
+const evalPoly=(c,x)=>c.reduce((s,v,i)=>s+v*Math.pow(x,i),0);
+function fitPoints(pts,method){
+  const def=FIT_METHODS[method],xs=pts.map(p=>p.x),ys=pts.map(p=>p.y),n=pts.length;
+  const coef=polyfit(xs,ys,def.deg);if(!coef||coef.some(v=>!isNum(v)))return null;
+  const ym=mean(ys);let ssr=0,sst=0;
+  for(let k=0;k<n;k++){const r=ys[k]-evalPoly(coef,xs[k]);ssr+=r*r;sst+=(ys[k]-ym)*(ys[k]-ym)}
+  const dof=n-(def.deg+1),syx=dof>0?Math.sqrt(ssr/dof):NaN;
+  let se=null;
+  if(def.deg===1){
+    const xm=mean(xs),sxx=xs.reduce((s,x)=>s+(x-xm)*(x-xm),0);
+    if(sxx>0&&isNum(syx))se={b1:syx/Math.sqrt(sxx),b0:syx*Math.sqrt(1/n+xm*xm/sxx)};
+  }
+  return {method:method,coef:coef,n:n,r2:sst>0?1-ssr/sst:NaN,syx:syx,se:se,
+    xmin:Math.min.apply(null,xs),xmax:Math.max.apply(null,xs),ymin:Math.min.apply(null,ys),ymax:Math.max.apply(null,ys),
+    slope:coef[1],intercept:coef[0]};
+}
+function invertFit(fit,y){
+  const c=fit.coef;
+  if(fit.method==='linear')return c[1]?(y-c[0])/c[1]:NaN;
+  const A=c[2],B=c[1],C=c[0]-y;
+  if(Math.abs(A)<1e-15)return B?-C/B:NaN;
+  const disc=B*B-4*A*C;if(disc<0)return NaN;
+  const s=Math.sqrt(disc),r=[(-B+s)/(2*A),(-B-s)/(2*A)];
+  const tol=1e-9*Math.max(1,Math.abs(fit.xmax));
+  const inR=r.filter(x=>x>=fit.xmin-tol&&x<=fit.xmax+tol);
+  if(inR.length)return inR[0];
+  const dist=x=>x<fit.xmin?fit.xmin-x:x-fit.xmax;
+  return r.sort((p,q)=>dist(p)-dist(q))[0];
+}
+function isMonotonic(fit){
+  if(fit.method==='linear')return true;
+  const d=x=>fit.coef[1]+2*fit.coef[2]*x,a=d(fit.xmin),b=d(fit.xmax);
+  return a*b>0;
+}
+function eqString(fit,yl,unit){
+  const c=fit.coef,sg=v=>v<0?'−':'+';
+  if(fit.method==='linear')return yl+' = '+sig(c[1],5)+' · C '+sg(c[0])+' '+sig(Math.abs(c[0]),5);
+  return yl+' = '+sig(c[2],5)+' · C² '+sg(c[1])+' '+sig(Math.abs(c[1]),5)+' · C '+sg(c[0])+' '+sig(Math.abs(c[0]),5);
+}
+
+/* =====================================================================
+   4. MODELO DE PROYECTO
+   ===================================================================== */
+const S={project:null,view:'home',newMode:false,dirty:false,flags:{resultsSeen:false,exported:false},live:null,
+  graphOpts:{err:true,lod:true,labels:true},sampleState:'work',lastSample:null};
+
+function newProject(f){
+  return {format:'cielab-lab-project',version:1,id:uid('P'),name:f.name,analyst:f.analyst||'',notes:f.notes||'',
+    unit:f.unit,param:f.param||'L',createdAt:nowISO(),updatedAt:nowISO(),
+    blank:null,standards:[],fitConfig:{method:'linear',includeBlank:true},calibration:null,
+    samples:[],lod:{method:'blank_sd',k:3},lodResult:null};
+}
+function touch(){
+  const p=S.project;if(!p)return;p.updatedAt=nowISO();S.dirty=true;renderChrome();
+}
+const PR=()=>PARAMS[S.project&&S.project.param||'L'];
+
+function calPoints(pr){
+  const p=PARAMS[pr.param||'L'],pts=[];
+  if(pr.fitConfig.includeBlank&&pr.blank){
+    const s=pr.blank.stats;pts.push({id:'blank',code:pr.blank.name||'Blanco',x:0,y:s[p.mean],sd:s[p.sd],n:s.n,blank:true});
+  }
+  pr.standards.forEach(st=>{const s=st.analysis.stats;pts.push({id:st.id,code:st.code,x:st.conc,y:s[p.mean],sd:s[p.sd],n:s.n})});
+  return pts;
+}
+function curSig(pr){
+  return JSON.stringify({p:pr.param,m:pr.fitConfig.method,b:pr.fitConfig.includeBlank,
+    pts:calPoints(pr).map(q=>[q.id,q.x,Number(q.y.toFixed(6))])});
+}
+function liveFit(pr){
+  const errors=[],warnings=[],pts=calPoints(pr),def=FIT_METHODS[pr.fitConfig.method];
+  if(!pr.blank)warnings.push('Aún no se ha cargado el blanco.');
+  else if(!pr.fitConfig.includeBlank)warnings.push('El blanco no se incluye como punto de la curva (concentración 0).');
+  if(!pr.standards.length)warnings.push('Aún no hay estándares de calibración.');
+  const bad=pts.filter(q=>!isNum(q.x)||!isNum(q.y)||q.x<0);
+  if(bad.length)errors.push('Hay datos inválidos o concentraciones faltantes en: '+bad.map(b=>b.code).join(', ')+'.');
+  if(new Set(pr.standards.map(s=>s.unit)).size>1)errors.push('Los estándares usan unidades de concentración distintas.');
+  if(pts.length<def.minPoints)errors.push('No hay suficientes puntos para el ajuste «'+def.label+'»: se necesitan al menos '+def.minPoints+' (blanco incluido) y hay '+pts.length+'.');
+  else if(pts.length<MIN_REC_POINTS)warnings.push('Se recomienda construir la curva con al menos '+MIN_REC_POINTS+' puntos; ahora hay '+pts.length+'.');
+  if(pts.length&&new Set(pts.map(q=>q.x)).size<2)errors.push('Todas las concentraciones son iguales; no se puede ajustar una curva.');
+  if(!errors.length){
+    const fit=fitPoints(pts,pr.fitConfig.method);
+    if(!fit)errors.push('No se pudo calcular el ajuste (sistema singular).');
+    else{
+      if(Math.abs(fit.slope)<1e-9)errors.push('La pendiente del ajuste es nula: la señal no varía con la concentración.');
+      if(isNum(fit.r2)&&fit.r2<0.98)warnings.push('R² = '+fit.r2.toFixed(4)+': el ajuste es pobre; revise los estándares o el método.');
+      if(!isMonotonic(fit))warnings.push('El polinomio no es monótono dentro del rango calibrado; la conversión de L* a concentración puede ser ambigua.');
+      if(!errors.length)return {ok:true,fit:fit,pts:pts,errors:errors,warnings:warnings};
+    }
+  }
+  return {ok:false,pts:pts,errors:errors,warnings:warnings};
+}
+function stdUnit(pr){return pr.standards.length?pr.standards[0].unit:pr.unit}
+function saveCalibration(){
+  const pr=S.project,r=liveFit(pr);if(!r.ok)return false;
+  const p=PARAMS[pr.param];
+  pr.calibration={id:uid('C'),createdAt:nowISO(),param:pr.param,method:pr.fitConfig.method,includeBlank:pr.fitConfig.includeBlank,
+    unit:stdUnit(pr),fit:r.fit,eq:eqString(r.fit,p.label),sig:curSig(pr),
+    points:r.pts.map(q=>({id:q.id,code:q.code,x:q.x,y:q.y,sd:q.sd,n:q.n,blank:!!q.blank}))};
+  refreshResults();touch();return true;
+}
+const calStale=pr=>!!pr.calibration&&pr.calibration.sig!==curSig(pr);
+function fitForUse(pr){
+  if(pr.calibration)return {fit:pr.calibration.fit,pts:pr.calibration.points,param:pr.calibration.param,unit:pr.calibration.unit,eq:pr.calibration.eq,saved:true};
+  const r=liveFit(pr);
+  return r.ok?{fit:r.fit,pts:r.pts,param:pr.param,unit:stdUnit(pr),eq:eqString(r.fit,PARAMS[pr.param].label),saved:false}:null;
+}
+
+/* ---- LOD ---- */
+function computeLod(pr){
+  const cfg=pr.lod,m=LOD_METHODS[cfg.method],out={ok:false,errors:[],warnings:[],method:cfg.method};
+  const src=fitForUse(pr);
+  if(!pr.blank)out.errors.push('Falta el blanco: cárguelo en «Curva de calibración».');
+  if(!src)out.errors.push('Falta una curva de calibración válida.');
+  if(out.errors.length)return out;
+  if(m.linearOnly&&src.fit.method!=='linear'){out.errors.push('Este método solo está disponible con ajuste lineal.');return out}
+  const p=PARAMS[src.param],bv=pr.blank.stats[p.mean],bsd=pr.blank.stats[p.sd],slope=src.fit.slope;
+  let sigma,sl;
+  if(cfg.method==='blank_sd'){sigma=bsd;sl='s(blanco)'}
+  else if(cfg.method==='resid_sd'){sigma=src.fit.syx;sl='s(y/x)'}
+  else{sigma=src.fit.se?src.fit.se.b0:NaN;sl='s(b)'}
+  if(!isNum(sigma)){out.errors.push('No se puede estimar σ con los datos actuales (¿pocos puntos?).');return out}
+  if(!isNum(slope)||Math.abs(slope)<1e-9){out.errors.push('La pendiente es nula; no se puede calcular el LOD.');return out}
+  if(!isNum(cfg.k)||cfg.k<=0){out.errors.push('El factor k debe ser un número positivo.');return out}
+  const lod=cfg.k*sigma/Math.abs(slope);
+  Object.assign(out,{ok:true,lod:lod,k:cfg.k,sigma:sigma,sigmaLabel:sl,slope:slope,blankValue:bv,blankSd:bsd,unit:src.unit,
+    signalAtLod:bv+Math.sign(slope)*cfg.k*sigma,formula:m.formula,saved:src.saved,param:src.param,fitMethod:src.fit.method});
+  const low=src.pts.filter(q=>q.x>0).map(q=>q.x);
+  if(low.length&&lod>Math.min.apply(null,low))out.warnings.push('El LOD ('+sig(lod)+' '+src.unit+') es mayor que el estándar no nulo más bajo ('+sig(Math.min.apply(null,low))+' '+src.unit+').');
+  if(!src.saved)out.warnings.push('Se usa la curva actual, que todavía no se ha guardado.');
+  if(src.fit.method!=='linear')out.warnings.push('Con ajuste polinomial se usa la pendiente en el origen.');
+  if(cfg.method==='blank_sd')out.warnings.push('σ proviene de los píxeles de una sola imagen del blanco; no incluye la variabilidad entre réplicas.');
+  return out;
+}
+const lodValue=pr=>{const r=computeLod(pr);return r.ok?r.lod:null};
+
+/* ---- Evaluación de muestras ---- */
+function evalSample(pr,stats){
+  const cal=pr.calibration;if(!cal)return null;
+  const p=PARAMS[cal.param],y=stats[p.mean],fit=cal.fit,conc=invertFit(fit,y),flags=[];
+  const ty=1e-9*Math.max(1,Math.abs(fit.ymax)),tc=1e-9*Math.max(1,Math.abs(fit.xmax));
+  const outY=y<fit.ymin-ty||y>fit.ymax+ty;
+  const outC=!isNum(conc)||conc<fit.xmin-tc||conc>fit.xmax+tc;
+  if(!isNum(conc))flags.push('sin_solucion');
+  if(outY||outC)flags.push('fuera_rango');
+  if(isNum(conc)&&conc<0)flags.push('negativa');
+  const lod=lodValue(pr);
+  if(lod!=null&&isNum(conc)&&conc<lod)flags.push('bajo_lod');
+  return {calibrationId:cal.id,param:cal.param,value:y,conc:conc,unit:cal.unit,flags:flags,computedAt:nowISO()};
+}
+function refreshResults(){
+  const pr=S.project;if(!pr||!pr.calibration)return;
+  pr.samples.forEach(s=>{s.result=evalSample(pr,s.analysis.stats)});
+}
+function obsAuto(s){
+  const f=(s.result&&s.result.flags)||[],t=[];
+  if(f.includes('fuera_rango'))t.push('Fuera del rango de calibración');
+  if(f.includes('sin_solucion'))t.push('Sin solución en la curva');
+  if(f.includes('negativa'))t.push('Concentración negativa');
+  if(f.includes('bajo_lod'))t.push('Por debajo del LOD');
+  return t;
+}
+const obsText=s=>obsAuto(s).concat(s.obs?[s.obs]:[]).join('; ');
+function derive(){
+  const pr=S.project;if(!pr)return;
+  const l=computeLod(pr);pr.lodResult=l.ok?{lod:l.lod,k:l.k,sigma:l.sigma,slope:l.slope,blankValue:l.blankValue,blankSd:l.blankSd,unit:l.unit,method:l.method,formula:l.formula,computedAt:nowISO()}:null;
+}
+/* =====================================================================
+   5. GRÁFICAS (canvas propio, exportable a PNG)
+   ===================================================================== */
+const LIGHT_T={ink:'#13202a',ink2:'#465764',ink3:'#6c7c88',grid:'#e3e8ec',axis:'#9fb0bc',accent:'#0a766f',sample:'#c2570c',bg:'#ffffff',sheet:'#ffffff'};
+function themeT(){
+  const cs=getComputedStyle(document.documentElement),g=n=>cs.getPropertyValue(n).trim();
+  return {ink:g('--ink'),ink2:g('--ink2'),ink3:g('--ink3'),grid:g('--rule'),axis:g('--rule2'),accent:g('--accent'),sample:g('--sample'),bg:null,sheet:g('--sheet')};
+}
+function niceTicks(min,max,target){
+  if(min===max){min-=1;max+=1}
+  const raw=(max-min)/(target||6),mag=Math.pow(10,Math.floor(Math.log10(raw))),nm=raw/mag;
+  const step=(nm<1.5?1:nm<3?2:nm<7?5:10)*mag;
+  const a=Math.floor(min/step+1e-9)*step,b=Math.ceil(max/step-1e-9)*step,t=[];
+  for(let v=a;v<=b+step/2;v+=step)t.push(Number(v.toPrecision(12)));
+  return {ticks:t,min:a,max:b,step:step};
+}
+function chartSpec(kind,live){
+  const pr=S.project,p0=PARAMS[pr.param];
+  let src=null;
+  if(live){const r=liveFit(pr);src=r.ok?{fit:r.fit,pts:r.pts,param:pr.param,unit:stdUnit(pr),eq:eqString(r.fit,p0.label)}:null}
+  else src=fitForUse(pr);
+  const p=src?PARAMS[src.param]:p0;
+  const pts=src?src.pts:calPoints(pr);
+  const samples=kind==='final'?pr.samples.filter(s=>s.result&&isNum(s.result.conc)).map(s=>({code:s.code,x:s.result.conc,y:s.result.value,out:s.result.flags.indexOf('fuera_rango')>=0})):[];
+  const lr=computeLod(pr);
+  return {pts:pts,fit:src?src.fit:null,eq:src?src.eq:'',unit:src?src.unit:stdUnit(pr),yl:p.label,samples:samples,lod:lr.ok?lr.lod:null};
+}
+function drawChart(cv,spec,o){
+  const T=o.theme,fs=o.fs||1;
+  const W=o.width||Math.max(300,cv.parentElement?cv.parentElement.clientWidth-12:700);
+  const H=o.height||Math.round(Math.max(300,Math.min(W*0.62,520)));
+  const dpr=o.dpr||Math.min(2,window.devicePixelRatio||1);
+  cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);
+  if(!o.width)cv.style.height=H+'px';
+  const g=cv.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,H);
+  if(T.bg){g.fillStyle=T.bg;g.fillRect(0,0,W,H)}
+  const F=(sz,w)=>(w||400)+' '+(sz*fs)+'px "Instrument Sans",system-ui,-apple-system,"Segoe UI",sans-serif';
+  const m={l:68*fs,r:22*fs,t:(o.title?50:24)*fs,b:58*fs},pw=W-m.l-m.r,ph=H-m.t-m.b;
+  const pts=spec.pts,smp=o.showSamples?spec.samples:[];
+  if(o.title){g.fillStyle=T.ink;g.textAlign='left';g.textBaseline='alphabetic';g.font='600 '+(19*fs)+'px "Source Serif 4",Georgia,serif';g.fillText(o.title,m.l,28*fs)}
+  if(!pts.length){g.fillStyle=T.ink3;g.font=F(14);g.textAlign='center';g.fillText('Sin datos para graficar',W/2,H/2);return}
+  const xs=[0],ys=[];
+  pts.forEach(q=>{xs.push(q.x);ys.push(q.y);if(o.showErr&&q.sd){ys.push(q.y+q.sd);ys.push(q.y-q.sd)}});
+  smp.forEach(s=>{xs.push(s.x);ys.push(s.y)});
+  if(o.showLod&&isNum(spec.lod))xs.push(spec.lod);
+  let x0=Math.min.apply(null,xs),x1=Math.max.apply(null,xs),y0=Math.min.apply(null,ys),y1=Math.max.apply(null,ys);
+  if(x1===x0)x1=x0+1;const yp=(y1-y0)*0.1||1;y0-=yp;y1+=yp;
+  const X=niceTicks(x0,x1,6),Y=niceTicks(y0,y1,6);
+  const sx=v=>m.l+(v-X.min)/(X.max-X.min)*pw,sy=v=>m.t+ph-(v-Y.min)/(Y.max-Y.min)*ph;
+  g.lineWidth=1;g.font=F(12);g.fillStyle=T.ink2;
+  g.textAlign='right';g.textBaseline='middle';
+  Y.ticks.forEach(t=>{const y=sy(t);g.strokeStyle=T.grid;g.beginPath();g.moveTo(m.l,y);g.lineTo(m.l+pw,y);g.stroke();g.fillText(sig(t,4),m.l-8*fs,y)});
+  g.textAlign='center';g.textBaseline='top';
+  X.ticks.forEach(t=>{const x=sx(t);g.strokeStyle=T.grid;g.beginPath();g.moveTo(x,m.t);g.lineTo(x,m.t+ph);g.stroke();g.fillText(sig(t,4),x,m.t+ph+8*fs)});
+  g.strokeStyle=T.axis;g.lineWidth=1.2;g.beginPath();g.moveTo(m.l,m.t);g.lineTo(m.l,m.t+ph);g.lineTo(m.l+pw,m.t+ph);g.stroke();
+  g.fillStyle=T.ink;g.font=F(13,600);g.textAlign='center';g.textBaseline='alphabetic';
+  g.fillText('Concentración ('+spec.unit+')',m.l+pw/2,H-10*fs);
+  g.save();g.translate(16*fs,m.t+ph/2);g.rotate(-Math.PI/2);g.fillText(spec.yl+' (unidades CIELAB)',0,0);g.restore();
+
+  g.save();g.beginPath();g.rect(m.l,m.t,pw,ph);g.clip();
+  if(spec.fit){
+    const f=spec.fit,curve=(a,b)=>{g.beginPath();for(let i=0;i<=160;i++){const x=a+(b-a)*i/160,y=evalPoly(f.coef,x);i?g.lineTo(sx(x),sy(y)):g.moveTo(sx(x),sy(y))}g.stroke()};
+    g.strokeStyle=T.accent;g.globalAlpha=.45;g.lineWidth=1.5*fs;g.setLineDash([5*fs,4*fs]);curve(X.min,X.max);
+    g.globalAlpha=1;g.setLineDash([]);g.lineWidth=2.4*fs;curve(f.xmin,f.xmax);
+  }
+  if(o.showLod&&isNum(spec.lod)){
+    g.strokeStyle=T.ink2;g.lineWidth=1.2*fs;g.setLineDash([2*fs,4*fs]);const x=sx(spec.lod);g.beginPath();g.moveTo(x,m.t);g.lineTo(x,m.t+ph);g.stroke();g.setLineDash([]);
+  }
+  smp.forEach(s=>{
+    const x=sx(s.x),y=sy(s.y);g.strokeStyle=T.sample;g.globalAlpha=.4;g.lineWidth=1*fs;g.setLineDash([3*fs,3*fs]);
+    g.beginPath();g.moveTo(m.l,y);g.lineTo(x,y);g.lineTo(x,m.t+ph);g.stroke();g.setLineDash([]);g.globalAlpha=1;
+  });
+  pts.forEach(q=>{
+    const x=sx(q.x),y=sy(q.y);
+    if(o.showErr&&q.sd>0){g.strokeStyle=T.ink2;g.lineWidth=1.2*fs;g.beginPath();g.moveTo(x,sy(q.y-q.sd));g.lineTo(x,sy(q.y+q.sd));g.moveTo(x-4*fs,sy(q.y-q.sd));g.lineTo(x+4*fs,sy(q.y-q.sd));g.moveTo(x-4*fs,sy(q.y+q.sd));g.lineTo(x+4*fs,sy(q.y+q.sd));g.stroke()}
+    g.beginPath();g.arc(x,y,5.2*fs,0,Math.PI*2);g.lineWidth=2*fs;g.strokeStyle=T.ink;g.fillStyle=q.blank?(T.sheet||'#fff'):T.ink;g.fill();g.stroke();
+  });
+  smp.forEach(s=>{
+    const x=sx(s.x),y=sy(s.y),r=6.5*fs;g.beginPath();g.moveTo(x,y-r);g.lineTo(x+r,y);g.lineTo(x,y+r);g.lineTo(x-r,y);g.closePath();
+    g.lineWidth=2*fs;g.strokeStyle=T.sample;g.fillStyle=s.out?(T.sheet||'#fff'):T.sample;g.fill();g.stroke();
+  });
+  g.restore();
+  if(o.showLabels&&smp.length&&smp.length<=20){
+    g.font=F(11,600);g.textBaseline='middle';
+    smp.forEach(s=>{const x=sx(s.x),y=sy(s.y);g.fillStyle=T.sample;g.textAlign=x>m.l+pw-60*fs?'right':'left';g.fillText(s.code+(s.out?' !':''),x+(g.textAlign==='left'?10:-10)*fs,y-10*fs)});
+  }
+  if(o.showLod&&isNum(spec.lod)){g.fillStyle=T.ink2;g.font=F(11,600);g.textAlign='left';g.textBaseline='top';g.fillText('LOD '+sig(spec.lod,3),sx(spec.lod)+4*fs,m.t+4*fs+(spec.fit?34*fs:0))}
+  if(spec.fit){
+    g.fillStyle=T.ink;g.textAlign='left';g.textBaseline='alphabetic';g.font='500 '+(14*fs)+'px "Source Serif 4",Georgia,serif';
+    g.fillText(spec.eq,m.l+10*fs,m.t+20*fs);
+    g.font=F(12);g.fillStyle=T.ink2;g.fillText('R² = '+(isNum(spec.fit.r2)?spec.fit.r2.toFixed(4):'—')+'   ·   n = '+spec.fit.n,m.l+10*fs,m.t+37*fs);
+  }
+  if(W>=520){
+    const items=[];
+    items.push({t:o.showErr?'Estándares (±1 DE de píxeles)':'Estándares',k:'pt'});
+    if(pts.some(q=>q.blank))items.push({t:'Blanco',k:'bl'});
+    if(spec.fit)items.push({t:'Ajuste',k:'ln'});
+    if(smp.length)items.push({t:'Muestras',k:'sm'});
+    g.font=F(12);g.textBaseline='middle';g.textAlign='right';
+    let y=m.t+pw*0+14*fs;const xr=m.l+pw-10*fs;
+    items.forEach(it=>{
+      const tw=g.measureText(it.t).width,mx=xr-tw-14*fs;g.fillStyle=T.ink2;g.fillText(it.t,xr,y);
+      if(it.k==='ln'){g.strokeStyle=T.accent;g.lineWidth=2.4*fs;g.beginPath();g.moveTo(mx-8*fs,y);g.lineTo(mx+8*fs,y);g.stroke()}
+      else if(it.k==='sm'){g.beginPath();g.moveTo(mx,y-6*fs);g.lineTo(mx+6*fs,y);g.lineTo(mx,y+6*fs);g.lineTo(mx-6*fs,y);g.closePath();g.fillStyle=T.sample;g.fill()}
+      else{g.beginPath();g.arc(mx,y,4.5*fs,0,Math.PI*2);g.lineWidth=2*fs;g.strokeStyle=T.ink;g.fillStyle=it.k==='bl'?(T.sheet||'#fff'):T.ink;g.fill();g.stroke()}
+      y+=18*fs;
+    });
+  }
+}
+function exportCanvas(kind,w,h){
+  const spec=chartSpec(kind,false);if(!spec)return null;
+  const cv=document.createElement('canvas'),pr=S.project;
+  drawChart(cv,spec,{width:w,height:h,dpr:1,fs:w/900,theme:LIGHT_T,showErr:S.graphOpts.err,showLod:kind==='final'&&S.graphOpts.lod,showLabels:S.graphOpts.labels,
+    showSamples:kind==='final',title:pr.name+' — '+(kind==='final'?'Concentración vs. luminosidad':'Curva de calibración')});
+  return cv;
+}
+const chartBlob=(kind)=>new Promise(res=>{const cv=exportCanvas(kind,1600,1000);if(!cv)return res(null);cv.toBlob(b=>res(b),'image/png')});
+function chartDataURL(kind){const cv=exportCanvas(kind,1000,640);return cv?cv.toDataURL('image/png'):null}
+
+function drawHist(cv,h,lo,hi){
+  const T=themeT(),W=Math.max(200,cv.parentElement.clientWidth),H=90,dpr=Math.min(2,window.devicePixelRatio||1);
+  cv.width=W*dpr;cv.height=H*dpr;cv.style.height=H+'px';
+  const g=cv.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,H);
+  const mx=Math.max.apply(null,h)||1,bw=(W-8)/h.length;
+  g.fillStyle=T.accent;
+  h.forEach((v,i)=>{const bh=v/mx*(H-24);g.fillRect(4+i*bw+.5,H-16-bh,Math.max(1,bw-1),bh)});
+  g.strokeStyle=T.axis;g.beginPath();g.moveTo(4,H-15.5);g.lineTo(W-4,H-15.5);g.stroke();
+  g.fillStyle=T.ink2;g.font='11px "Instrument Sans",system-ui,sans-serif';g.textBaseline='alphabetic';
+  g.textAlign='left';g.fillText('L* '+fx(lo,1),4,H-3);g.textAlign='right';g.fillText('L* '+fx(hi,1),W-4,H-3);
+}
+
+/* =====================================================================
+   6. BANCO DE TRABAJO DE IMAGEN («Cargar imagen»)
+   ===================================================================== */
+const WB={active:null,keyHandler:null};
+const KIND_LABEL={blank:'Blanco',standard:'Estándar de calibración',sample:'Muestra desconocida'};
+const UNITS=['mg/L','µg/L','ng/mL','ppm','ppb','µM','mM','mol/L','g/L','%'];
+
+function readDataURL(f){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=()=>rej(new Error('lectura'));r.readAsDataURL(f)})}
+function loadImg(src){return new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>rej(new Error('decodificación'));i.src=src})}
+async function sha256File(f){
+  try{const buf=await f.arrayBuffer(),h=await crypto.subtle.digest('SHA-256',buf);return Array.from(new Uint8Array(h)).map(b=>b.toString(16).padStart(2,'0')).join('')}
+  catch(e){return ''}
+}
+function closeWorkbench(){
+  if(WB.keyHandler){document.removeEventListener('keydown',WB.keyHandler);WB.keyHandler=null}
+  if(WB.active&&WB.active.mount)WB.active.mount.innerHTML='';
+  WB.active=null;S.live=null;if(typeof renderScale==='function')renderScale();
+}
+function wbTemplate(wb){
+  const seg=['blank','standard','sample'].map(k=>{
+    const on=wb.allowed.indexOf(k)>=0;
+    return '<label class="'+(on?'':'off')+'"><input type="radio" name="wbKind" value="'+k+'"'+(wb.kind===k?' checked':'')+(on?'':' disabled')+'><span>'+KIND_LABEL[k]+'</span></label>';
+  }).join('');
+  return '<section class="wb" aria-labelledby="wbTitle">'+
+  '<div class="wb-head"><h2 id="wbTitle">Cargar imagen</h2><div class="seg" role="radiogroup" aria-label="Tipo de imagen">'+seg+'</div></div>'+
+  '<div class="wb-grid"><div>'+
+    '<div id="wbMeta"></div>'+
+    '<label class="drop" id="wbDrop"><input type="file" id="wbFile" accept=".jpg,.jpeg,.png,image/jpeg,image/png" hidden><strong>Elegir imagen</strong><span>o arrástrela hasta aquí · JPG, JPEG o PNG</span></label>'+
+    '<div id="wbInfo"></div>'+
+    '<fieldset><legend>Región de interés</legend>'+
+      '<div class="seg" role="radiogroup" aria-label="Modo de selección"><label><input type="radio" name="wbRoi" value="auto" checked><span>Automática</span></label><label><input type="radio" name="wbRoi" value="manual"><span>Manual</span></label></div>'+
+      '<div id="wbAuto" style="margin-top:12px">'+
+        '<label class="field">Buscar la zona<select id="aMode"><option value="light">más clara (L* alto)</option><option value="dark">más oscura (L* bajo)</option></select></label>'+
+        '<div class="inline" style="margin-bottom:12px"><label class="field" style="flex:1 1 140px">Umbral<select id="aOtsu"><option value="1">Automático (Otsu)</option><option value="0">Manual</option></select></label>'+
+        '<label class="field" style="flex:1 1 90px">L* umbral<input type="number" id="aThr" min="0" max="100" step="0.5" value="50" disabled></label></div>'+
+        '<label class="field">Erosión del borde (% del radio)<input type="number" id="aEro" min="0" max="60" step="1" value="10"><small>Descarta píxeles de borde mezclados con el fondo.</small></label>'+
+        '<button class="btn sm" type="button" id="aRun">Detectar región</button>'+
+      '</div>'+
+      '<div id="wbManual" hidden style="margin-top:12px"><div class="tools">'+
+        '<button class="btn sm" type="button" data-tool="rect" aria-pressed="false">Rectángulo</button>'+
+        '<button class="btn sm" type="button" data-tool="circle" aria-pressed="false">Círculo</button>'+
+        '<button class="btn sm" type="button" data-tool="polygon" aria-pressed="false">Polígono</button></div>'+
+        '<div class="tools"><button class="btn sm" type="button" id="mClose" hidden>Cerrar polígono</button><button class="btn sm" type="button" id="mClear">Borrar región</button></div></div>'+
+    '</fieldset>'+
+  '</div><div>'+
+    '<div class="stack" id="wbStack"><canvas id="wbBase" width="4" height="3"></canvas><canvas id="wbOver" width="4" height="3"></canvas><div class="stack-empty" id="wbEmpty">Aún no hay imagen</div></div>'+
+    '<p class="hint" id="wbHint" aria-live="polite"></p><div id="wbStats"></div>'+
+  '</div></div>'+
+  '<div id="wbAlerts" role="alert"></div>'+
+  '<div class="wb-foot"><button class="btn primary" type="button" id="wbSave"></button><button class="btn" type="button" id="wbCancel">Descartar</button></div>'+
+  '</section>';
+}
+function openWorkbench(mount,opts){
+  closeWorkbench();
+  const wb={kind:opts.kind,allowed:opts.allowed,onDone:opts.onDone,onCancel:opts.onCancel,mount:mount,prep:null,info:null,roi:null,mask:null,stats:null,
+    roiMode:'auto',auto:{mode:'light',otsu:true,threshold:50,erosion:10},tool:null,drag:null,poly:[],cursor:null,tint:null,el:{}};
+  WB.active=wb;mount.innerHTML=wbTemplate(wb);
+  const q=s=>$(s,mount),e=wb.el;
+  e.meta=q('#wbMeta');e.file=q('#wbFile');e.drop=q('#wbDrop');e.info=q('#wbInfo');e.base=q('#wbBase');e.over=q('#wbOver');e.empty=q('#wbEmpty');
+  e.hint=q('#wbHint');e.stats=q('#wbStats');e.alerts=q('#wbAlerts');e.save=q('#wbSave');e.auto=q('#wbAuto');e.manual=q('#wbManual');e.close=q('#mClose');
+  wbRenderMeta(wb);wbRenderStats(wb);wbHint(wb);
+
+  $$('input[name=wbKind]',mount).forEach(r=>r.addEventListener('change',()=>{wb.kind=r.value;wbRenderMeta(wb);wbRenderStats(wb);wbAlerts(wb,[])}));
+  $$('input[name=wbRoi]',mount).forEach(r=>r.addEventListener('change',()=>{
+    wb.roiMode=r.value;e.auto.hidden=r.value!=='auto';e.manual.hidden=r.value!=='manual';wbSetTool(wb,null);
+    if(r.value==='auto'&&wb.prep)wbRunAuto(wb);wbHint(wb);
+  }));
+  e.file.addEventListener('change',()=>{if(e.file.files[0])wbLoadFile(wb,e.file.files[0]);e.file.value=''});
+  ['dragenter','dragover'].forEach(t=>e.drop.addEventListener(t,ev=>{ev.preventDefault();e.drop.classList.add('over')}));
+  ['dragleave','drop'].forEach(t=>e.drop.addEventListener(t,ev=>{ev.preventDefault();e.drop.classList.remove('over')}));
+  e.drop.addEventListener('drop',ev=>{const f=ev.dataTransfer&&ev.dataTransfer.files[0];if(f)wbLoadFile(wb,f)});
+  const aMode=q('#aMode'),aOtsu=q('#aOtsu'),aThr=q('#aThr'),aEro=q('#aEro');
+  const readAuto=()=>{wb.auto.mode=aMode.value;wb.auto.otsu=aOtsu.value==='1';aThr.disabled=wb.auto.otsu;
+    const t=parseNum(aThr.value);wb.auto.threshold=isNum(t)?Math.min(100,Math.max(0,t)):50;
+    const er=parseNum(aEro.value);wb.auto.erosion=isNum(er)?Math.min(60,Math.max(0,er)):0};
+  [aMode,aOtsu,aThr,aEro].forEach(x=>x.addEventListener('change',()=>{readAuto();if(wb.prep)wbRunAuto(wb)}));
+  q('#aRun').addEventListener('click',()=>{readAuto();wbRunAuto(wb)});
+  $$('[data-tool]',mount).forEach(b=>b.addEventListener('click',()=>{
+    if(!wb.prep){wbAlerts(wb,[{t:'err',m:'Primero cargue una imagen.'}]);return}
+    wbSetTool(wb,wb.tool===b.dataset.tool?null:b.dataset.tool);
+  }));
+  e.close.addEventListener('click',()=>wbClosePoly(wb));
+  q('#mClear').addEventListener('click',()=>{wb.roi=null;wb.mask=null;wb.stats=null;wb.tint=null;wb.poly=[];wbSetTool(wb,null);wbDraw(wb);wbRenderStats(wb);S.live=null;renderScale()});
+  q('#wbCancel').addEventListener('click',()=>{if(wb.onCancel)wb.onCancel();else closeWorkbench()});
+  e.save.addEventListener('click',()=>wbSave(wb));
+  wbPointer(wb);
+  WB.keyHandler=ev=>{
+    if(WB.active!==wb||wb.tool!=='polygon')return;
+    if(ev.key==='Enter'&&wb.poly.length>=3&&!/INPUT|SELECT|TEXTAREA/.test((ev.target||{}).tagName||'')){ev.preventDefault();wbClosePoly(wb)}
+    if(ev.key==='Escape'){wb.poly=[];wb.cursor=null;wbDraw(wb);e.close.hidden=true}
+  };
+  document.addEventListener('keydown',WB.keyHandler);
+  return wb;
+}
+function wbRenderMeta(wb){
+  const pr=S.project,el=wb.el.meta;
+  if(wb.kind==='blank'){
+    el.innerHTML='<label class="field">Nombre del blanco<input type="text" id="mName" value="'+esc(pr.blank?pr.blank.name:'Blanco')+'"></label><p class="small muted">Concentración del blanco: 0 '+esc(pr.unit)+'. Se conserva como referencia del proyecto y para el LOD.</p>';
+    wb.el.save.textContent='Guardar como blanco';
+  }else if(wb.kind==='standard'){
+    el.innerHTML='<label class="field">Nombre o código del estándar<input type="text" id="mCode" value="E'+(pr.standards.length+1)+'"></label>'+
+      '<div class="inline" style="align-items:flex-start"><label class="field" style="flex:1 1 120px">Concentración<input type="text" inputmode="decimal" id="mConc" placeholder="p. ej. 2.5"></label>'+
+      '<label class="field" style="flex:1 1 110px">Unidad<input type="text" id="mUnit" list="unitList" value="'+esc(stdUnit(pr))+'"></label></div><datalist id="unitList">'+UNITS.map(u=>'<option value="'+esc(u)+'">').join('')+'</datalist>';
+    wb.el.save.textContent='Añadir estándar a la curva';
+  }else{
+    el.innerHTML='<label class="field">Código de la muestra<input type="text" id="mCode" value="M'+(pr.samples.length+1)+'"></label>';
+    wb.el.save.textContent='Procesar y guardar muestra';
+  }
+}
+function wbHint(wb){
+  const h=wb.el.hint;
+  if(!wb.prep){h.textContent='Cargue una imagen para comenzar. El archivo original nunca se modifica.';return}
+  if(wb.roiMode==='auto'){h.textContent='La zona resaltada en rosa es la que se analiza. Ajuste el umbral o pase a «Manual» si no es adecuada.';return}
+  if(wb.tool==='rect')h.textContent='Arrastre sobre la imagen para dibujar el rectángulo.';
+  else if(wb.tool==='circle')h.textContent='Arrastre desde el centro hacia afuera para definir el círculo.';
+  else if(wb.tool==='polygon')h.textContent='Haga clic para añadir vértices. Cierre con doble clic, clic en el primer vértice, Enter o el botón «Cerrar polígono». Esc cancela.';
+  else h.textContent='Elija una herramienta (rectángulo, círculo o polígono) y dibuje la región.';
+}
+function wbAlerts(wb,list){
+  wb.el.alerts.innerHTML=list.map(a=>'<div class="banner '+(a.t==='err'?'err':a.t==='warn'?'warn':a.t==='ok'?'ok':'info')+'">'+(a.h?a.m:esc(a.m))+'</div>').join('');
+}
+function wbBusy(wb,on){wb.mount.firstElementChild.classList.toggle('busy',on);if(on)wb.el.hint.textContent='Procesando…'}
+async function wbLoadFile(wb,file){
+  wbAlerts(wb,[]);
+  const okType=/^image\/(jpeg|png)$/.test(file.type)||/\.(jpe?g|png)$/i.test(file.name);
+  if(!okType){wbAlerts(wb,[{t:'err',m:'Formato no admitido: «'+file.name+'». Use imágenes JPG, JPEG o PNG.'}]);return}
+  wbBusy(wb,true);
+  try{
+    const [dataUrl,hash]=await Promise.all([readDataURL(file),sha256File(file)]);
+    const img=await loadImg(dataUrl);
+    if(!img.naturalWidth||!img.naturalHeight)throw new Error('vacía');
+    await new Promise(r=>setTimeout(r,20));
+    const prep=prepareImage(img,1200);
+    wb.prep=prep;
+    wb.info={name:file.name,type:file.type||(/png$/i.test(file.name)?'image/png':'image/jpeg'),size:file.size,sha256:hash,width:img.naturalWidth,height:img.naturalHeight,procW:prep.W,procH:prep.H,dataUrl:dataUrl};
+    wb.roi=null;wb.mask=null;wb.stats=null;wb.tint=null;wb.poly=[];
+    const {base,over}=wb.el;base.width=over.width=prep.W;base.height=over.height=prep.H;
+    base.getContext('2d').drawImage(prep.canvas,0,0);wb.el.empty.hidden=true;
+    wb.el.info.innerHTML='<div class="banner ok"><b>Imagen válida</b> · '+esc(wb.info.type.replace('image/','').toUpperCase())+' · '+wb.info.width+'×'+wb.info.height+' px · '+fmtBytes(file.size)+
+      '<br><span class="small">Original sin modificar'+(hash?' (SHA-256 '+hash.slice(0,12)+'…)':'')+'. El análisis usa una copia de '+prep.W+'×'+prep.H+' px'+(prep.valid?' (los píxeles transparentes se excluyen)':'')+'.</span></div>';
+    wbBusy(wb,false);wbHint(wb);
+    if(wb.roiMode==='auto')await wbRunAuto(wb);else{wbDraw(wb);wbRenderStats(wb)}
+  }catch(err){
+    wbBusy(wb,false);wb.prep=null;wb.info=null;wb.el.info.innerHTML='';wb.el.empty.hidden=false;
+    wbAlerts(wb,[{t:'err',m:'La imagen no es válida o está dañada y no se pudo leer. Pruebe con otro archivo.'}]);wbHint(wb);
+  }
+}
+async function wbRunAuto(wb){
+  if(!wb.prep){wbAlerts(wb,[{t:'err',m:'No se ha cargado ninguna imagen.'}]);return}
+  wbBusy(wb,true);await new Promise(r=>setTimeout(r,30));
+  const a=wb.auto,res=autoDetect(wb.prep,a);wbBusy(wb,false);wbHint(wb);
+  if(!res.mask){
+    wb.roi=null;wb.mask=null;wb.stats=null;wb.tint=null;wbDraw(wb);wbRenderStats(wb);S.live=null;renderScale();
+    wbAlerts(wb,[{t:'err',m:'No se detectó ninguna región con estos criterios. Cambie el umbral, alterne entre zona clara/oscura o use la selección manual.'}]);return;
+  }
+  wbSetRoi(wb,{type:'auto',mode:a.mode,otsu:a.otsu,threshold:a.otsu?res.threshold:a.threshold,thresholdUsed:res.threshold,erosion:a.erosion},res.mask);
+}
+function wbSetRoi(wb,roi,mask){
+  const stats=computeStats(wb.prep,mask);
+  if(!stats){wbAlerts(wb,[{t:'err',m:'La región no contiene píxeles válidos.'}]);return}
+  const bb=maskBBox(mask,wb.prep.W,wb.prep.H);
+  roi.bbox=bb;roi.areaPx=stats.n;
+  wb.roi=roi;wb.mask=mask;wb.stats=stats;wb.tint=buildTint(mask,wb.prep.W,wb.prep.H);
+  wbAlerts(wb,[]);wbDraw(wb);wbRenderStats(wb);S.live=stats.meanL;renderScale();
+}
+function wbSetTool(wb,t){
+  wb.tool=t;wb.poly=[];wb.cursor=null;wb.drag=null;
+  $$('[data-tool]',wb.mount).forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.tool===t)));
+  wb.el.over.classList.toggle('draw',!!t);wb.el.close.hidden=true;wbHint(wb);wbDraw(wb);
+}
+function wbDraw(wb){
+  const o=wb.el.over,g=o.getContext('2d');g.clearRect(0,0,o.width,o.height);
+  if(!wb.prep)return;
+  if(wb.tint)g.drawImage(wb.tint,0,0);
+  const lw=Math.max(1.5,wb.prep.W/420);g.lineWidth=lw;g.strokeStyle='#ff2d75';g.fillStyle='rgba(255,45,117,.18)';
+  if(wb.drag&&wb.tool){
+    const a=wb.drag.start,b=wb.drag.cur;g.setLineDash([lw*3,lw*2]);g.beginPath();
+    if(wb.tool==='rect')g.rect(a.x,a.y,b.x-a.x,b.y-a.y);else g.arc(a.x,a.y,Math.hypot(b.x-a.x,b.y-a.y),0,Math.PI*2);
+    g.fill();g.stroke();g.setLineDash([]);
+  }
+  if(wb.tool==='polygon'&&wb.poly.length){
+    g.setLineDash([lw*3,lw*2]);g.beginPath();wb.poly.forEach((p,i)=>i?g.lineTo(p.x,p.y):g.moveTo(p.x,p.y));
+    if(wb.cursor)g.lineTo(wb.cursor.x,wb.cursor.y);g.stroke();g.setLineDash([]);
+    g.fillStyle='#ff2d75';wb.poly.forEach((p,i)=>{const r=(i===0?5:3)*lw/1.5;g.beginPath();g.arc(p.x,p.y,r,0,Math.PI*2);g.fill()});
+  }
+}
+function wbPointer(wb){
+  const o=wb.el.over;
+  const pt=e=>{const r=o.getBoundingClientRect();return {x:(e.clientX-r.left)/r.width*wb.prep.W,y:(e.clientY-r.top)/r.height*wb.prep.H,k:r.width/wb.prep.W}};
+  o.addEventListener('pointerdown',e=>{
+    if(!wb.tool||!wb.prep)return;e.preventDefault();const p=pt(e);
+    if(wb.tool==='polygon'){
+      if(wb.poly.length>=3){const f=wb.poly[0];if(Math.hypot((f.x-p.x)*p.k,(f.y-p.y)*p.k)<12){wbClosePoly(wb);return}}
+      wb.poly.push({x:p.x,y:p.y});wb.cursor=p;wb.el.close.hidden=wb.poly.length<3;wbDraw(wb);return;
+    }
+    try{o.setPointerCapture(e.pointerId)}catch(x){}
+    wb.drag={start:p,cur:p};wbDraw(wb);
+  });
+  o.addEventListener('pointermove',e=>{
+    if(!wb.tool||!wb.prep)return;const p=pt(e);
+    if(wb.tool==='polygon'){if(wb.poly.length){wb.cursor=p;wbDraw(wb)}}
+    else if(wb.drag){wb.drag.cur=p;wbDraw(wb)}
+  });
+  o.addEventListener('pointerup',e=>{
+    if(!wb.drag)return;const a=wb.drag.start,b=wb.drag.cur;wb.drag=null;const W=wb.prep.W,H=wb.prep.H;
+    let roi=null;
+    if(wb.tool==='rect'&&Math.abs(b.x-a.x)>3&&Math.abs(b.y-a.y)>3)roi={type:'rect',x0:Math.max(0,Math.min(a.x,b.x))/W,y0:Math.max(0,Math.min(a.y,b.y))/H,x1:Math.min(W,Math.max(a.x,b.x))/W,y1:Math.min(H,Math.max(a.y,b.y))/H};
+    else if(wb.tool==='circle'&&Math.hypot(b.x-a.x,b.y-a.y)>3)roi={type:'circle',cx:a.x/W,cy:a.y/H,r:Math.hypot(b.x-a.x,b.y-a.y)/W};
+    if(roi){wbSetTool(wb,null);wbSetRoi(wb,roi,roiToMask(roi,wb.prep))}else wbDraw(wb);
+  });
+  o.addEventListener('dblclick',e=>{if(wb.tool==='polygon'){e.preventDefault();wbClosePoly(wb)}});
+}
+function wbClosePoly(wb){
+  const pts=[];wb.poly.forEach(p=>{const l=pts[pts.length-1];if(!l||Math.hypot(l.x-p.x,l.y-p.y)>1.5)pts.push(p)});
+  if(pts.length<3){wbAlerts(wb,[{t:'warn',m:'Un polígono necesita al menos 3 vértices.'}]);return}
+  const W=wb.prep.W,H=wb.prep.H,roi={type:'polygon',pts:pts.map(p=>[Math.min(1,Math.max(0,p.x/W)),Math.min(1,Math.max(0,p.y/H))])};
+  wbSetTool(wb,null);wbSetRoi(wb,roi,roiToMask(roi,wb.prep));
+}
+function wbRenderStats(wb){
+  const box=wb.el.stats,pr=S.project;
+  if(!wb.stats){box.innerHTML='<p class="muted small">Los valores L*, a* y b* aparecerán aquí en cuanto exista una región de interés.</p>';return}
+  const s=wb.stats,pct=s.n/(wb.prep.W*wb.prep.H)*100;
+  let extra='';
+  if(wb.kind==='sample'&&pr.calibration){
+    const ev=evalSample(pr,s);
+    extra='<div class="banner info">Concentración estimada con la curva guardada: <b>'+sig(ev.conc)+' '+esc(ev.unit)+'</b></div>';
+    if(ev.flags.indexOf('fuera_rango')>=0)extra+='<div class="banner warn"><b>'+MSG_OUT+'</b></div>';
+  }
+  box.innerHTML=extra+'<dl class="metrics">'+
+    '<div><dt>L* promedio</dt><dd>'+fx(s.meanL,3)+'</dd></div>'+
+    '<div><dt>Desviación estándar de L*</dt><dd>'+fx(s.sdL,3)+'</dd></div>'+
+    '<div><dt>L* mínimo</dt><dd>'+fx(s.minL,2)+'</dd></div>'+
+    '<div><dt>L* máximo</dt><dd>'+fx(s.maxL,2)+'</dd></div>'+
+    '<div><dt>Píxeles analizados</dt><dd>'+s.n.toLocaleString('en-US').replace(/,/g,' ')+' <small>('+fx(pct,1)+' %)</small></dd></div>'+
+    '<div><dt>a* / b* promedio</dt><dd>'+fx(s.meanA,2)+' / '+fx(s.meanB,2)+'</dd></div></dl>'+
+    '<div class="small muted" style="margin-bottom:4px">Distribución de L* dentro de la región (DE muestral, n − 1)</div><div><canvas id="wbHist" aria-label="Histograma de L*"></canvas></div>';
+  const hh=histogramL(wb.prep,wb.mask,s,40);drawHist($('#wbHist',box),hh.h,hh.lo,hh.hi);
+}
+function wbValidate(wb){
+  const err=[],warn=[],bad=[],pr=S.project,val=id=>{const x=$(id,wb.el.meta);return x?x.value.trim():''};
+  const vals={};
+  if(!wb.prep)err.push('No se ha cargado ninguna imagen.');
+  else if(!wb.roi||!wb.mask||!wb.stats)err.push('No se ha definido una región de interés. Use la detección automática o dibuje una región manual.');
+  if(wb.kind==='blank'){vals.name=val('#mName')||'Blanco'}
+  else if(wb.kind==='standard'){
+    vals.code=val('#mCode');vals.unit=val('#mUnit');const c=val('#mConc');vals.conc=parseNum(c);
+    if(!vals.code){err.push('Falta el nombre o código del estándar.');bad.push('#mCode')}
+    else if(pr.standards.some(s=>s.code.toLowerCase()===vals.code.toLowerCase())){err.push('Ya existe un estándar con el código «'+vals.code+'».');bad.push('#mCode')}
+    if(c===''){err.push('Falta la concentración del estándar.');bad.push('#mConc')}
+    else if(!isNum(vals.conc)||vals.conc<0){err.push('La concentración no es válida: escriba un número mayor o igual que 0.');bad.push('#mConc')}
+    else if(vals.conc===0)warn.push('La concentración es 0. Si esta imagen es el blanco, cárguela como «Blanco».');
+    if(!vals.unit){err.push('Falta la unidad de concentración.');bad.push('#mUnit')}
+    else if(pr.standards.length&&vals.unit!==pr.standards[0].unit){err.push('Todos los estándares deben usar la misma unidad ('+pr.standards[0].unit+').');bad.push('#mUnit')}
+  }else{
+    vals.code=val('#mCode');
+    if(!pr.calibration)err.push('No existe una curva de calibración guardada. Guárdela antes de analizar muestras.');
+    if(!vals.code){err.push('Falta el código de la muestra.');bad.push('#mCode')}
+    else if(pr.samples.some(s=>s.code.toLowerCase()===vals.code.toLowerCase())){err.push('Ya existe una muestra con el código «'+vals.code+'».');bad.push('#mCode')}
+  }
+  if(wb.stats){
+    const s=wb.stats;
+    if(!isNum(s.meanL)||!isNum(s.sdL))err.push('Los valores calculados no son válidos.');
+    if(s.n<100)warn.push('La región tiene solo '+s.n+' píxeles; el promedio puede ser poco representativo.');
+    if(s.sdL===0)warn.push('L* es idéntico en toda la región (posible saturación o imagen plana).');
+    if(s.meanL<3)warn.push('La región es casi negra (L* < 3): revise la exposición.');
+    if(s.meanL>98)warn.push('La región está casi saturada (L* > 98): revise la exposición.');
+    if(wb.kind==='sample'&&pr.calibration){const ev=evalSample(pr,s);if(ev.flags.indexOf('fuera_rango')>=0)warn.push(MSG_OUT)}
+  }
+  return {err:err,warn:warn,bad:bad,vals:vals};
+}
+function makeThumb(wb){
+  const w=160,h=Math.max(1,Math.round(160*wb.prep.H/wb.prep.W)),c=document.createElement('canvas');c.width=w;c.height=h;
+  const g=c.getContext('2d');g.drawImage(wb.prep.canvas,0,0,w,h);if(wb.tint)g.drawImage(wb.tint,0,0,w,h);
+  return c.toDataURL('image/jpeg',0.72);
+}
+function makeAnalysis(wb,kind){
+  return {id:uid('A'),kind:kind,createdAt:nowISO(),image:Object.assign({},wb.info),roi:JSON.parse(JSON.stringify(wb.roi)),stats:Object.assign({},wb.stats),thumb:makeThumb(wb)};
+}
+async function wbSave(wb){
+  const v=wbValidate(wb);
+  $$('[aria-invalid]',wb.el.meta).forEach(x=>x.removeAttribute('aria-invalid'));
+  v.bad.forEach(id=>{const x=$(id,wb.el.meta);if(x)x.setAttribute('aria-invalid','true')});
+  wbAlerts(wb,v.err.map(m=>({t:'err',m:m})).concat(v.warn.map(m=>({t:'warn',m:m}))));
+  if(v.err.length){const f=$('[aria-invalid]',wb.el.meta);if(f)f.focus();return}
+  const pr=S.project;
+  if(wb.kind==='blank'){
+    if(pr.blank){const ok=await askConfirm('Reemplazar el blanco','Ya existe un blanco («'+esc(pr.blank.name)+'»). ¿Desea reemplazarlo por esta imagen?','Reemplazar');if(!ok)return}
+    const a=makeAnalysis(wb,'blank');a.name=v.vals.name;pr.blank=a;
+    touch();closeWorkbench();toast('Blanco guardado: L* = '+fx(a.stats.meanL,2),'ok');wb.onDone&&wb.onDone(a);
+  }else if(wb.kind==='standard'){
+    const a=makeAnalysis(wb,'standard'),st={id:uid('S'),code:v.vals.code,conc:v.vals.conc,unit:v.vals.unit,analysis:a};
+    pr.standards.push(st);touch();closeWorkbench();toast('Estándar '+st.code+' añadido: L* = '+fx(a.stats.meanL,2),'ok');wb.onDone&&wb.onDone(st);
+  }else{
+    const a=makeAnalysis(wb,'sample'),smp={id:uid('M'),code:v.vals.code,analysis:a,obs:'',result:null};
+    smp.result=evalSample(pr,a.stats);pr.samples.push(smp);touch();wb.onDone&&wb.onDone(smp);
+  }
+}
+/* =====================================================================
+   7. ESTRUCTURA: menú, pasos, escala L*
+   ===================================================================== */
+const NAV=[['home','Nuevo proyecto'],['load','Cargar proyecto'],['calib','Curva de calibración'],['samples','Análisis de muestras'],['results','Resultados'],['graphs','Gráficas'],['lod','Límite de detección'],['export','Exportar resultados']];
+const STEPS=['Proyecto','Blanco','Estándares','Curva','Muestras','Resultados y gráficas','LOD y exportación'];
+const STEP_TITLE=['Datos del proyecto','Cargar y analizar el blanco','Cargar y analizar los estándares','Construir y guardar la curva de calibración','Analizar muestras desconocidas','Revisar resultados y gráficas','Límite de detección y exportación'];
+
+function grayForL(L){const Y=L>8?Math.pow((L+16)/116,3):L/903.3,v=Y<=0.0031308?12.92*Y:1.055*Math.pow(Y,1/2.4)-0.055,c=Math.round(Math.max(0,Math.min(1,v))*255);return 'rgb('+c+','+c+','+c+')'}
+const RAMP='linear-gradient(90deg,'+[0,10,20,30,40,50,60,70,80,90,100].map(l=>grayForL(l)+' '+l+'%').join(',')+')';
+
+function navState(id){
+  const pr=S.project;
+  if(!pr)return (id==='home'||id==='load')?'':'locked';
+  switch(id){
+    case 'home':return S.newMode?'':'done';
+    case 'calib':return pr.calibration?(calStale(pr)?'warn':'done'):'';
+    case 'samples':return !pr.calibration?'locked':(pr.samples.length?'done':'');
+    case 'results':return pr.samples.length?'done':'';
+    case 'graphs':return fitForUse(pr)?'':'locked';
+    case 'lod':return computeLod(pr).ok?'':'locked';
+    default:return '';
+  }
+}
+function curView(){return S.view==='home'?'home':S.view}
+function renderNav(){
+  $('#nav').innerHTML=NAV.map(n=>{
+    const st=navState(n[0]),cur=(n[0]===S.view)||(n[0]==='home'&&S.view==='home');
+    return '<button type="button" data-nav="'+n[0]+'" data-state="'+st+'"'+(cur?' aria-current="page"':'')+'><span>'+n[1]+'</span><span class="ni" aria-hidden="true"></span></button>';
+  }).join('');
+}
+function renderProj(){
+  const pr=S.project;
+  $('#projBox').innerHTML=pr?'<div class="pn">'+esc(pr.name)+'</div><div class="pm">Creado '+esc(fmtDate(pr.createdAt))+' · unidad '+esc(pr.unit)+'</div>':'<div class="pm">Sin proyecto abierto</div>';
+}
+function renderDirty(){
+  const c=$('#dirtyChip');
+  if(!S.project){c.textContent='';return}
+  c.textContent=S.dirty?'Cambios sin guardar':'Proyecto guardado';c.className='dirty'+(S.dirty?'':' clean');
+}
+function renderScale(){
+  const pr=S.project;let mk='';
+  const add=(v,cls,label)=>{if(isNum(v))mk+='<span class="mk '+cls+'" style="left:'+Math.max(0,Math.min(100,v))+'%" title="'+esc(label)+': L* '+v.toFixed(1)+'"><i></i></span>'};
+  if(pr){if(pr.blank)add(pr.blank.stats.meanL,'blank','Blanco');pr.standards.forEach(s=>add(s.analysis.stats.meanL,'std',s.code));pr.samples.forEach(s=>add(s.analysis.stats.meanL,'smp',s.code))}
+  if(isNum(S.live))add(S.live,'live','Región actual');
+  $('#scaleBox').innerHTML='<h4>Escala L* de las mediciones</h4><div class="ramp-wrap"><div class="ramp" style="background:'+RAMP+'">'+mk+'</div><div class="ramp-ticks"><span style="left:0">0</span><span style="left:25%">25</span><span style="left:50%">50</span><span style="left:75%">75</span><span style="left:100%">100</span></div></div>'+
+    '<div class="legend-s"><span>○ blanco</span><span>● estándar</span><span>◆ muestra</span><span style="color:#ff6b9a">● región actual</span></div>';
+}
+function stepInfo(){
+  const pr=S.project;
+  const done=[!!pr,!!(pr&&pr.blank),!!(pr&&pr.standards.length>=2),!!(pr&&pr.calibration&&!calStale(pr)),!!(pr&&pr.samples.length),!!(pr&&pr.samples.length&&S.flags.resultsSeen),!!S.flags.exported];
+  let cur=0;
+  if(S.view==='calib')cur=!pr.blank?1:(!done[2]?2:3);
+  else if(S.view==='samples')cur=4;
+  else if(S.view==='results'||S.view==='graphs')cur=5;
+  else if(S.view==='lod'||S.view==='export')cur=6;
+  return {done:done,cur:cur};
+}
+function renderSteps(){
+  const s=stepInfo();
+  $('#stepbar').innerHTML='<p class="now">Paso <b>'+(s.cur+1)+' de '+STEPS.length+'</b> · '+STEP_TITLE[s.cur]+'</p><ol class="steps" aria-label="Progreso del análisis">'+
+    STEPS.map((t,i)=>'<li data-state="'+(i===s.cur?'current':s.done[i]?'done':'todo')+'"'+(i===s.cur?' aria-current="step"':'')+'><span class="sl">'+t+'</span></li>').join('')+'</ol>';
+}
+function renderChrome(){renderProj();renderNav();renderScale();renderSteps();renderDirty()}
+
+/* =====================================================================
+   8. VISTAS
+   ===================================================================== */
+function nextView(){
+  const pr=S.project;
+  if(!pr)return 'home';
+  if(!pr.blank||pr.standards.length<2||!pr.calibration)return 'calib';
+  return pr.samples.length?'results':'samples';
+}
+function go(view){
+  if(view==='load'){$('#projFile').click();return}
+  if(view==='home'&&S.project)S.newMode=true;
+  S.view=view;if(view==='results')S.flags.resultsSeen=true;
+  renderView();renderChrome();window.scrollTo(0,0);
+}
+function renderView(){
+  closeWorkbench();S.redraw=null;
+  const v=$('#view');
+  if(!S.project&&S.view!=='home'){
+    v.innerHTML='<h1>Primero cree o cargue un proyecto</h1><div class="empty" style="margin-top:14px"><h3>No hay proyecto abierto</h3><p>Todo el análisis queda asociado a un proyecto para conservar la trazabilidad.</p><div class="actions" style="justify-content:center"><button class="btn primary" data-act="toHome">Nuevo proyecto</button><button class="btn" data-act="loadProj">Cargar proyecto</button></div></div>';
+    return;
+  }
+  ({home:viewHome,calib:viewCalib,samples:viewSamples,results:viewResults,graphs:viewGraphs,lod:viewLod,export:viewExport}[S.view]||viewHome)(v);
+}
+const gateBanner=(m,btn)=>'<div class="banner err"><b>'+m+'</b>'+(btn?' <button class="btn sm" data-nav="'+btn[0]+'" style="margin-left:8px">'+btn[1]+'</button>':'')+'</div>';
+const flagTags=s=>obsAuto(s).map(t=>'<span class="tag">'+esc(t)+'</span>').join('');
+
+/* ---- Inicio / Nuevo proyecto ---- */
+function viewHome(v){
+  const pr=S.project,editing=pr&&!S.newMode;
+  const f=editing?pr:{name:'',analyst:'',unit:'mg/L',notes:'',param:'L'};
+  const ramp='<div class="bigramp" style="background:'+RAMP+'" aria-hidden="true"><span style="left:0">L* 0 · negro</span><span style="left:50%">50</span><span style="left:100%">100 · blanco</span></div>';
+  let summary='';
+  if(editing){
+    summary='<div class="metrics"><div><dt>Blanco</dt><dd>'+(pr.blank?fx(pr.blank.stats.meanL,1)+' <small>L*</small>':'—')+'</dd></div><div><dt>Estándares</dt><dd>'+pr.standards.length+'</dd></div><div><dt>Curva</dt><dd>'+(pr.calibration?(isNum(pr.calibration.fit.r2)?'R² '+pr.calibration.fit.r2.toFixed(4):'guardada'):'sin guardar')+'</dd></div><div><dt>Muestras</dt><dd>'+pr.samples.length+'</dd></div></div>';
+  }
+  v.innerHTML='<h1>'+(editing?esc(pr.name):'Nuevo proyecto')+'</h1>'+
+  '<p class="lede">Cuantifique cambios de luminosidad L* (CIELAB) en imágenes de muestras y conviértalos en concentración mediante una curva de calibración.</p>'+ramp+
+  (S.project&&S.newMode?'<div class="banner warn"><b>Se cerrará el proyecto actual («'+esc(pr.name)+'»)</b> al crear uno nuevo'+(S.dirty?' y hay cambios sin guardar':'')+'. <button class="btn sm" data-act="cancelNew" style="margin-left:8px">Volver al proyecto actual</button></div>':'')+
+  '<div class="grid2"><section class="block"><div class="block-head"><h2>'+(editing?'Datos del proyecto':'Datos iniciales')+'</h2></div>'+
+    '<label class="field">Nombre del proyecto<input type="text" id="pName" value="'+esc(f.name)+'" placeholder="p. ej. Detección de nitrito — lote 3"></label>'+
+    '<div class="formgrid"><label class="field">Analista<input type="text" id="pAnalyst" value="'+esc(f.analyst)+'"></label>'+
+    '<label class="field">Unidad de concentración<input type="text" id="pUnit" list="unitList2" value="'+esc(f.unit)+'"'+(editing&&pr.standards.length?' disabled':'')+'>'+(editing&&pr.standards.length?'<small>No se puede cambiar cuando ya hay estándares.</small>':'')+'</label></div>'+
+    '<datalist id="unitList2">'+UNITS.map(u=>'<option value="'+esc(u)+'">').join('')+'</datalist>'+
+    (editing?'':'<label class="field">Parámetro CIELAB<select id="pParam"><option value="L">L* — luminosidad (principal)</option><option value="a">a* — verde–rojo</option><option value="b">b* — azul–amarillo</option></select><small>Puede cambiarlo después en la curva de calibración.</small></label>')+
+    '<label class="field">Notas<textarea id="pNotes">'+esc(f.notes)+'</textarea></label>'+
+    '<div class="actions">'+(editing?'<button class="btn primary" data-act="saveInfo">Guardar cambios</button><button class="btn" data-act="continueFlow">Continuar el análisis</button>':'<button class="btn primary" data-act="createProject">Crear proyecto</button><button class="btn" data-act="loadProj">Cargar proyecto</button>')+'</div></section>'+
+  '<section class="block"><div class="block-head"><h2>'+(editing?'Estado del proyecto':'Flujo de trabajo')+'</h2></div>'+
+    (editing?summary+'<p class="small muted">Creado '+esc(fmtDate(pr.createdAt))+' · modificado '+esc(fmtDate(pr.updatedAt))+'<br>ID <code>'+esc(pr.id)+'</code></p>':
+    '<ol class="flow"><li>Cargar el <b>blanco</b> y detectar su región luminosa.</li><li>Cargar los <b>estándares</b> con su concentración.</li><li>Construir y <b>guardar la curva</b> L* vs. concentración.</li><li>Cargar cada <b>muestra</b> y convertir su L* en concentración.</li><li>Revisar resultados, gráficas y límite de detección.</li><li>Exportar (TXT, CSV, Excel, PNG) o guardar el proyecto.</li></ol>')+
+  '</section></div>';
+}
+
+/* ---- Curva de calibración ---- */
+function viewCalib(v){
+  const pr=S.project;
+  v.innerHTML='<h1>Curva de calibración</h1><p class="lede">Cargue el blanco y los estándares de concentración conocida. En cada imagen se identifica la región luminosa, se calcula L* y con esos puntos se construye la curva.</p>'+
+  '<section class="block"><div class="block-head"><h2>Blanco y estándares</h2><div class="actions"><button class="btn" data-act="addBlank">'+(pr.blank?'Reemplazar blanco':'Cargar blanco')+'</button><button class="btn primary" data-act="addStd">Añadir estándar</button></div></div><div id="wbMount"></div><div id="stdBlock"></div></section>'+
+  '<section class="block" id="fitBlock"></section>';
+  renderStdTable();renderFit();
+}
+function renderStdTable(){
+  const pr=S.project,p=PARAMS[pr.param],box=$('#stdBlock');if(!box)return;
+  const th=(a,b)=>'<td>'+a+'</td>';
+  const rows=[];
+  if(pr.blank){const s=pr.blank.stats;rows.push('<tr><td><b>'+esc(pr.blank.name||'Blanco')+'</b>'+(pr.fitConfig.includeBlank?'':' <span class="chip">no incluido en el ajuste</span>')+'</td><td class="n">0</td><td>'+esc(stdUnit(pr))+'</td><td class="n">'+fx(s[p.mean],3)+'</td><td class="n">'+fx(s[p.sd],3)+'</td><td class="n">'+s.n+'</td><td><img class="thumb" alt="Miniatura del blanco" src="'+pr.blank.thumb+'"></td><td class="n"><button class="btn sm" data-act="viewA" data-kind="blank">Ver</button></td></tr>')}
+  pr.standards.forEach(st=>{const s=st.analysis.stats;rows.push('<tr><td><b>'+esc(st.code)+'</b></td><td class="n"><input type="text" inputmode="decimal" value="'+esc(String(st.conc))+'" data-bind="stdConc" data-id="'+st.id+'" aria-label="Concentración de '+esc(st.code)+'"></td><td>'+esc(st.unit)+'</td><td class="n">'+fx(s[p.mean],3)+'</td><td class="n">'+fx(s[p.sd],3)+'</td><td class="n">'+s.n+'</td><td><img class="thumb" alt="Miniatura de '+esc(st.code)+'" src="'+st.analysis.thumb+'"></td><td class="n"><button class="btn sm" data-act="viewA" data-kind="standard" data-id="'+st.id+'">Ver</button> <button class="btn sm danger" data-act="delStd" data-id="'+st.id+'">Quitar</button></td></tr>')});
+  box.innerHTML=rows.length?'<div class="tablewrap"><table class="data"><thead><tr><th>Estándar</th><th class="n">Concentración</th><th>Unidad</th><th class="n">'+p.label+' promedio</th><th class="n">Desv. estándar</th><th class="n">Píxeles</th><th>Imagen</th><th></th></tr></thead><tbody>'+rows.join('')+'</tbody></table></div>':
+    '<div class="empty"><h3>Aún no hay imágenes de calibración</h3><p>Empiece con «Cargar blanco» y siga con los estándares.</p></div>';
+}
+function renderFit(){
+  const pr=S.project,box=$('#fitBlock');if(!box)return;
+  const r=liveFit(pr),p=PARAMS[pr.param],stale=calStale(pr),unit=stdUnit(pr);
+  const status=pr.calibration?(stale?'<span class="chip warn">Curva guardada desactualizada</span>':'<span class="chip ok">Curva guardada</span> <span class="small muted"><code>'+esc(pr.calibration.id)+'</code></span>'):'<span class="chip">Curva sin guardar</span>';
+  let h='<div class="block-head"><h2>Ajuste y curva</h2><div>'+status+'</div></div>';
+  h+='<div class="inline" style="margin-bottom:14px;align-items:flex-end">'+
+    '<label class="field" style="flex:1 1 170px">Parámetro CIELAB<select data-bind="calParam">'+Object.keys(PARAMS).map(k=>'<option value="'+k+'"'+(pr.param===k?' selected':'')+'>'+PARAMS[k].label+' — '+PARAMS[k].name+'</option>').join('')+'</select></label>'+
+    '<label class="field" style="flex:1 1 210px">Método de ajuste<select data-bind="calMethod">'+Object.keys(FIT_METHODS).map(k=>'<option value="'+k+'"'+(pr.fitConfig.method===k?' selected':'')+'>'+FIT_METHODS[k].label+'</option>').join('')+'</select></label>'+
+    '<label class="check" style="padding-bottom:9px"><input type="checkbox" data-bind="calIncl"'+(pr.fitConfig.includeBlank?' checked':'')+'> Incluir el blanco como punto (C = 0)</label></div>';
+  if(stale)h+='<div class="banner warn"><b>La curva guardada no coincide con la tabla actual.</b> Guárdela de nuevo para que las muestras usen los datos vigentes.</div>';
+  r.errors.forEach(m=>h+='<div class="banner err">'+esc(m)+'</div>');
+  r.warnings.forEach(m=>h+='<div class="banner warn">'+esc(m)+'</div>');
+  if(r.ok){
+    const f=r.fit;
+    h+='<div class="eq" aria-label="Ecuación de la curva">'+esc(eqString(f,p.label))+'</div>'+
+    '<dl class="metrics"><div><dt>'+(f.method==='linear'?'Pendiente':'Pendiente en el origen')+'</dt><dd>'+sig(f.slope,5)+' <small>'+p.label+' / '+esc(unit)+'</small></dd></div>'+
+    '<div><dt>Intercepto</dt><dd>'+sig(f.intercept,5)+' <small>'+p.label+'</small></dd></div>'+
+    '<div><dt>R²</dt><dd>'+(isNum(f.r2)?f.r2.toFixed(5):'—')+'</dd></div>'+
+    '<div><dt>Puntos utilizados</dt><dd>'+f.n+'</dd></div>'+
+    '<div><dt>Error típico s(y/x)</dt><dd>'+sig(f.syx,4)+' <small>'+p.label+'</small></dd></div>'+
+    '<div><dt>Rango calibrado</dt><dd>'+sig(f.xmin)+' – '+sig(f.xmax)+' <small>'+esc(unit)+'</small></dd></div></dl>';
+  }
+  h+='<div class="chartbox"><canvas id="cvCal" role="img" aria-label="Gráfica de calibración: '+p.label+' frente a concentración"></canvas></div>'+
+    '<div class="actions" style="margin-top:12px"><button class="btn primary" data-act="saveCal"'+(r.ok?'':' disabled')+'>Guardar curva</button><button class="btn" data-act="pngCal">Exportar gráfica (PNG)</button><button class="btn" data-act="csvCal">Exportar datos y ecuación (CSV)</button></div>';
+  box.innerHTML=h;
+  const draw=()=>{const cv=$('#cvCal');if(cv)drawChart(cv,chartSpec('cal',true),{theme:themeT(),showErr:S.graphOpts.err,showSamples:false,showLod:false,showLabels:false})};
+  draw();S.redraw=draw;
+}
+
+/* ---- Análisis de muestras ---- */
+function viewSamples(v){
+  const pr=S.project;
+  let h='<h1>Análisis de muestras</h1><p class="lede">Cargue las imágenes de las muestras una por una. La región luminosa se identifica automáticamente y puede corregirla antes de guardar; la concentración se calcula con la curva guardada.</p>';
+  if(!pr.calibration){
+    v.innerHTML=h+gateBanner('No existe una curva de calibración guardada. Construya y guarde la curva antes de analizar muestras.',['calib','Ir a la curva de calibración']);return;
+  }
+  if(calStale(pr))h+='<div class="banner warn"><b>La curva guardada no coincide con los estándares actuales.</b> Los resultados usan la curva guardada ('+esc(pr.calibration.id)+').</div>';
+  h+='<div id="wbMount"></div><section class="block"><div class="block-head"><h2>Muestras analizadas</h2><button class="btn" data-nav="results">Ver resultados</button></div><div id="smpList"></div></section>';
+  v.innerHTML=h;renderSampleList();mountSampleWb();
+}
+function mountSampleWb(){return openWorkbench($('#wbMount'),{kind:'sample',allowed:['sample'],onDone:sampleDone,onCancel:mountSampleWb})}
+function sampleDone(smp){
+  S.lastSample=smp;closeWorkbench();renderSampleList();
+  const r=smp.result,m=$('#wbMount');if(!m)return;
+  m.innerHTML='<section class="wb"><h2>Muestra «'+esc(smp.code)+'» guardada</h2><dl class="metrics" style="margin-top:12px"><div><dt>L* promedio</dt><dd>'+fx(smp.analysis.stats.meanL,3)+'</dd></div><div><dt>Concentración calculada</dt><dd>'+sig(r.conc)+' <small>'+esc(r.unit)+'</small></dd></div><div><dt>Píxeles analizados</dt><dd>'+smp.analysis.stats.n+'</dd></div></dl>'+
+    (r.flags.indexOf('fuera_rango')>=0?'<div class="banner warn"><b>'+MSG_OUT+'</b></div>':'')+(r.flags.indexOf('bajo_lod')>=0?'<div class="banner warn">La concentración está por debajo del límite de detección.</div>':'')+
+    '<h3 style="margin:14px 0 10px">¿Analizar otra muestra?</h3><div class="actions"><button class="btn primary" data-act="moreSample">Sí, cargar la siguiente</button><button class="btn" data-act="noMore">No, ver el resumen del proyecto</button></div></section>';
+  renderSteps();
+}
+function renderSampleList(){
+  const pr=S.project,box=$('#smpList');if(!box)return;
+  if(!pr.samples.length){box.innerHTML='<p class="muted small">Todavía no se ha analizado ninguna muestra.</p>';return}
+  box.innerHTML='<div class="tablewrap"><table class="data"><thead><tr><th>Código</th><th class="n">L* promedio</th><th class="n">Concentración</th><th>Unidad</th><th>Avisos</th></tr></thead><tbody>'+
+    pr.samples.map(s=>'<tr'+(s.result&&s.result.flags.indexOf('fuera_rango')>=0?' class="out"':'')+'><td><b>'+esc(s.code)+'</b></td><td class="n">'+fx(s.analysis.stats.meanL,3)+'</td><td class="n">'+sig(s.result&&s.result.conc)+'</td><td>'+esc(s.result?s.result.unit:'')+'</td><td>'+(flagTags(s)||'—')+'</td></tr>').join('')+'</tbody></table></div>';
+}
+
+/* ---- Resultados ---- */
+function viewResults(v){
+  const pr=S.project,cal=pr.calibration,lod=computeLod(pr),out=pr.samples.filter(s=>s.result&&s.result.flags.indexOf('fuera_rango')>=0);
+  let h='<h1>Resultados</h1><p class="lede">Resumen completo del proyecto y resultados de cada muestra, con la trazabilidad imagen → región → píxeles → L* → concentración.</p>';
+  h+='<dl class="metrics"><div><dt>Muestras analizadas</dt><dd>'+pr.samples.length+'</dd></div>'+
+    '<div><dt>Blanco</dt><dd>'+(pr.blank?fx(pr.blank.stats.meanL,2)+' <small>L*</small>':'—')+'</dd></div>'+
+    '<div><dt>Curva</dt><dd>'+(cal?(isNum(cal.fit.r2)?'R² '+cal.fit.r2.toFixed(4):'guardada'):'sin guardar')+' <small>n = '+(cal?cal.fit.n:pr.standards.length)+'</small></dd></div>'+
+    '<div><dt>LOD</dt><dd>'+(lod.ok?sig(lod.lod,3)+' <small>'+esc(lod.unit)+'</small>':'—')+'</dd></div>'+
+    '<div><dt>Fuera del rango</dt><dd>'+out.length+'</dd></div></dl>';
+  if(cal)h+='<div class="eq">'+esc(cal.eq)+' <span class="small muted" style="font-family:var(--sans)">C en '+esc(cal.unit)+'</span></div>';
+  else h+=gateBanner('No hay curva de calibración guardada.',['calib','Ir a la curva']);
+  if(out.length)h+='<div class="banner warn"><b>'+MSG_OUT+'</b><br>Muestras afectadas: '+out.map(s=>esc(s.code)).join(', ')+'.</div>';
+  h+='<section class="block"><div class="block-head"><h2>Tabla de muestras</h2><div class="actions"><button class="btn" data-nav="samples">Analizar más muestras</button><button class="btn" data-nav="graphs">Ver gráficas</button><button class="btn primary" data-nav="export">Exportar</button></div></div>';
+  if(!pr.samples.length)h+='<div class="empty"><h3>Aún no hay muestras</h3><p>Analice al menos una muestra para ver resultados.</p></div>';
+  else h+='<div class="tablewrap"><table class="data"><thead><tr><th>Código</th><th>Imagen</th><th class="n">'+PARAMS[cal?cal.param:pr.param].label+' promedio</th><th class="n">Desv. estándar</th><th class="n">Píxeles</th><th class="n">Concentración</th><th>Unidad</th><th>Observaciones</th><th></th></tr></thead><tbody>'+
+    pr.samples.map(s=>{const p=PARAMS[s.result?s.result.param:pr.param],st=s.analysis.stats,o=s.result&&s.result.flags.indexOf('fuera_rango')>=0;
+      return '<tr'+(o?' class="out"':'')+'><td><b>'+esc(s.code)+'</b></td><td><img class="thumb" alt="Miniatura de '+esc(s.code)+'" src="'+s.analysis.thumb+'"></td><td class="n">'+fx(st[p.mean],3)+'</td><td class="n">'+fx(st[p.sd],3)+'</td><td class="n">'+st.n+'</td><td class="n"><b>'+sig(s.result&&s.result.conc)+'</b></td><td>'+esc(s.result?s.result.unit:'')+'</td><td>'+flagTags(s)+'<input class="obs" type="text" data-bind="obs" data-id="'+s.id+'" value="'+esc(s.obs||'')+'" placeholder="Observación" aria-label="Observaciones de '+esc(s.code)+'"></td><td class="n"><button class="btn sm" data-act="viewSample" data-id="'+s.id+'">Trazabilidad</button> <button class="btn sm danger" data-act="delSample" data-id="'+s.id+'">Quitar</button></td></tr>'}).join('')+'</tbody></table></div>';
+  h+='</section>';
+  v.innerHTML=h;
+}
+
+/* ---- Gráficas ---- */
+function viewGraphs(v){
+  const pr=S.project,src=fitForUse(pr);
+  let h='<h1>Gráficas</h1><p class="lede">Curva de calibración, muestras desconocidas y concentraciones calculadas. Todas las gráficas se pueden exportar como PNG.</p>';
+  if(!src){v.innerHTML=h+gateBanner('Se necesita una curva de calibración válida para graficar.',['calib','Ir a la curva de calibración']);return}
+  const o=S.graphOpts;
+  h+='<div class="inline" style="margin-bottom:14px;gap:18px"><label class="check"><input type="checkbox" data-bind="gErr"'+(o.err?' checked':'')+'> Barras de error (±1 DE de píxeles)</label><label class="check"><input type="checkbox" data-bind="gLod"'+(o.lod?' checked':'')+'> Marcar el LOD</label><label class="check"><input type="checkbox" data-bind="gLabels"'+(o.labels?' checked':'')+'> Etiquetar muestras</label></div>'+
+  '<section class="block"><div class="block-head"><h2>Concentración vs. luminosidad</h2><button class="btn" data-act="exPngFinal">Exportar PNG</button></div>'+
+  '<div class="chartbox"><canvas id="cvFinal" role="img" aria-label="Curva de calibración con muestras desconocidas"></canvas></div>'+
+  (pr.samples.length?'':'<p class="small muted" style="margin-top:8px">Aún no hay muestras: la gráfica muestra solo la curva de calibración.</p>')+
+  (pr.samples.some(s=>s.result&&s.result.flags.indexOf('fuera_rango')>=0)?'<div class="banner warn" style="margin-top:10px"><b>'+MSG_OUT+'</b> Las muestras fuera de rango se dibujan con un rombo hueco y «!».</div>':'')+'</section>'+
+  '<section class="block"><div class="block-head"><h2>Curva de calibración</h2><button class="btn" data-act="exPngCal">Exportar PNG</button></div><div class="chartbox"><canvas id="cvCal2" role="img" aria-label="Curva de calibración"></canvas></div></section>';
+  v.innerHTML=h;
+  const draw=()=>{
+    const t=themeT();
+    drawChart($('#cvFinal'),chartSpec('final',false),{theme:t,showErr:o.err,showSamples:true,showLod:o.lod,showLabels:o.labels});
+    drawChart($('#cvCal2'),chartSpec('cal',false),{theme:t,showErr:o.err,showSamples:false,showLod:false,showLabels:false});
+  };
+  draw();S.redraw=draw;
+}
+
+/* ---- Límite de detección ---- */
+function viewLod(v){
+  const pr=S.project,cfg=pr.lod,m=LOD_METHODS[cfg.method],r=computeLod(pr);
+  let h='<h1>Límite de detección</h1><p class="lede">El criterio estadístico es configurable. El método elegido queda registrado en pantalla, en el proyecto y en los archivos exportados.</p>';
+  h+='<section class="block"><div class="block-head"><h2>Método de cálculo</h2></div><div class="inline" style="align-items:flex-end">'+
+    '<label class="field" style="flex:2 1 280px">Método<select data-bind="lodMethod">'+Object.keys(LOD_METHODS).map(k=>'<option value="'+k+'"'+(cfg.method===k?' selected':'')+'>'+LOD_METHODS[k].label+'</option>').join('')+'</select></label>'+
+    '<label class="field" style="flex:1 1 110px">Factor k<input type="text" inputmode="decimal" data-bind="lodK" value="'+esc(String(cfg.k))+'"></label>'+
+    '<div class="actions" style="padding-bottom:12px"><button class="btn sm" data-act="lodK" data-k="3">k = 3</button><button class="btn sm" data-act="lodK" data-k="3.3">k = 3.3</button></div></div>'+
+    '<div class="eq" style="margin-top:4px">'+esc(m.formula)+'</div><p class="small muted">'+esc(m.desc)+' El criterio definitivo del proyecto puede fijarse aquí en cualquier momento.</p></section>';
+  if(!r.ok)r.errors.forEach(e=>h+='<div class="banner err">'+esc(e)+'</div>');
+  else{
+    const pl=PARAMS[r.param].label;
+    h+='<section class="block"><div class="block-head"><h2>Resultado</h2>'+(r.saved?'<span class="chip ok">Con la curva guardada</span>':'<span class="chip warn">Con la curva actual (sin guardar)</span>')+'</div>'+
+    '<div class="tablewrap"><table class="data"><tbody>'+
+    '<tr><td>Valor del blanco ('+pl+')</td><td class="n"><b>'+fx(r.blankValue,3)+'</b></td></tr>'+
+    '<tr><td>Desviación estándar del blanco</td><td class="n"><b>'+fx(r.blankSd,3)+'</b></td></tr>'+
+    '<tr><td>Pendiente de la curva</td><td class="n"><b>'+sig(r.slope,5)+'</b> '+pl+' / '+esc(r.unit)+'</td></tr>'+
+    '<tr><td>σ utilizada ('+esc(r.sigmaLabel)+')</td><td class="n"><b>'+sig(r.sigma,4)+'</b> '+pl+'</td></tr>'+
+    '<tr><td>Factor k</td><td class="n"><b>'+sig(r.k,3)+'</b></td></tr>'+
+    '<tr><td>Señal correspondiente al LOD</td><td class="n"><b>'+fx(r.signalAtLod,3)+'</b> '+pl+'</td></tr>'+
+    '<tr><td><b>Límite de detección (LOD)</b></td><td class="n" style="font-size:1.15rem"><b>'+sig(r.lod,4)+'</b></td></tr>'+
+    '<tr><td>Unidad de concentración</td><td class="n"><b>'+esc(r.unit)+'</b></td></tr></tbody></table></div></section>';
+    r.warnings.forEach(w=>h+='<div class="banner warn">'+esc(w)+'</div>');
+  }
+  v.innerHTML=h;
+}
+
+/* ---- Exportación ---- */
+function viewExport(v){
+  const pr=S.project;
+  let h='<h1>Exportar resultados</h1><p class="lede">Los archivos incluyen los resultados individuales de cada muestra, los parámetros de la curva de calibración y el método usado para el LOD.</p>';
+  if(!pr.calibration)h+='<div class="banner warn"><b>No hay curva guardada.</b> Se exportarán solo los datos disponibles.</div>';
+  if(!pr.samples.length)h+='<div class="banner warn">Todavía no hay muestras analizadas.</div>';
+  const row=(t,d,b,a)=>'<tr><td><b>'+t+'</b><div class="small muted">'+d+'</div></td><td class="n"><button class="btn'+(a?' primary':'')+'" data-act="'+b[0]+'">'+b[1]+'</button></td></tr>';
+  h+='<section class="block"><div class="tablewrap"><table class="data"><tbody>'+
+    row('Informe de texto (.txt)','Informe legible con proyecto, curva, estándares, muestras y LOD.',['exTxt','Descargar TXT'])+
+    row('Datos tabulares (.csv)','Secciones de proyecto, curva, estándares y muestras en un solo archivo (UTF-8).',['exCsv','Descargar CSV'])+
+    row('Libro de Excel (.xlsx)','Hojas «Resumen», «Estándares» y «Muestras» con valores numéricos.',['exXlsx','Descargar Excel'])+
+    row('Gráfica de calibración (.png)','Puntos experimentales, ajuste y ecuación.',['exPngCal','Descargar PNG'])+
+    row('Gráfica final (.png)','Curva, muestras desconocidas y concentraciones calculadas.',['exPngFinal','Descargar PNG'])+
+    row('Proyecto completo (.json)','Todo lo necesario para retomar el análisis: imágenes, regiones, valores CIELAB, curva, LOD y gráficas.',['saveProject','Guardar proyecto'],true)+
+    '</tbody></table></div></section>';
+  v.innerHTML=h;
+}
+
+/* =====================================================================
+   9. TRAZABILIDAD (detalle de un análisis)
+   ===================================================================== */
+function roiDesc(r){
+  if(r.type==='auto')return 'Automática · zona '+(r.mode==='dark'?'oscura':'clara')+' · umbral L* '+fx(r.thresholdUsed!=null?r.thresholdUsed:r.threshold,1)+' ('+(r.otsu?'Otsu':'manual')+') · erosión '+r.erosion+' % del radio';
+  if(r.type==='rect')return 'Manual · rectángulo';
+  if(r.type==='circle')return 'Manual · círculo';
+  return 'Manual · polígono de '+(r.pts?r.pts.length:'?')+' vértices';
+}
+async function renderAnalysisPreview(a,cv){
+  const g=cv.getContext('2d');
+  try{
+    if(!a.image.dataUrl)throw new Error('sin imagen');
+    const img=await loadImg(a.image.dataUrl),prep=prepareImage(img,1200),mask=roiToMask(a.roi,prep);
+    cv.width=prep.W;cv.height=prep.H;g.drawImage(prep.canvas,0,0);if(mask)g.drawImage(buildTint(mask,prep.W,prep.H),0,0);
+  }catch(e){
+    try{const i=await loadImg(a.thumb);cv.width=i.naturalWidth;cv.height=i.naturalHeight;cv.getContext('2d').drawImage(i,0,0)}catch(x){}
+  }
+}
+function showDetail(kind,id){
+  const pr=S.project;let a,title,conc='',extra='';
+  if(kind==='blank'){a=pr.blank;title='Blanco «'+(a.name||'Blanco')+'»';conc='0 '+stdUnit(pr)+' (blanco por definición)'}
+  else if(kind==='standard'){const st=pr.standards.find(s=>s.id===id);if(!st)return;a=st.analysis;title='Estándar «'+st.code+'»';conc=sig(st.conc)+' '+st.unit+' (declarada)'}
+  else{
+    const sm=pr.samples.find(s=>s.id===id);if(!sm)return;a=sm.analysis;title='Muestra «'+sm.code+'»';const r=sm.result;
+    conc=r?sig(r.conc)+' '+r.unit+' (calculada con la curva '+r.calibrationId+')':'—';
+    extra=obsAuto(sm).length?'<li><b>Avisos</b><span>'+obsAuto(sm).map(esc).join('; ')+(sm.result.flags.indexOf('fuera_rango')>=0?'<br><b>'+MSG_OUT+'</b>':'')+'</span></li>':'';
+  }
+  const s=a.stats,im=a.image,cal=pr.calibration;
+  const d=openDlg('<h2>'+esc(title)+'</h2><p class="small muted" style="margin:4px 0 12px">Cadena de trazabilidad: imagen original → región analizada → píxeles → L* → concentración → resultado final.</p>'+
+    '<canvas id="dPrev" style="max-width:100%;max-height:44vh;border:1px solid var(--rule);display:block;margin:0 auto 12px"></canvas>'+
+    '<ul class="trace">'+
+    '<li><b>1. Imagen original</b><span>'+esc(im.name)+' · '+esc((im.type||'').replace('image/','').toUpperCase())+' · '+im.width+'×'+im.height+' px · '+fmtBytes(im.size||0)+'<br>SHA-256: <code>'+esc(im.sha256||'no disponible')+'</code><br>ID de análisis: <code>'+esc(a.id)+'</code> · '+esc(fmtDate(a.createdAt))+'</span></li>'+
+    '<li><b>2. Región analizada</b><span>'+esc(roiDesc(a.roi))+(a.roi.bbox?'<br>Caja envolvente: x '+fx(a.roi.bbox.x0*100,1)+'–'+fx(a.roi.bbox.x1*100,1)+' %, y '+fx(a.roi.bbox.y0*100,1)+'–'+fx(a.roi.bbox.y1*100,1)+' % de la imagen':'')+'</span></li>'+
+    '<li><b>3. Píxeles</b><span>'+s.n+' píxeles analizados (sobre una copia de '+(im.procW||'?')+'×'+(im.procH||'?')+' px)</span></li>'+
+    '<li><b>4. Valores CIELAB</b><span>L* = '+fx(s.meanL,3)+' ± '+fx(s.sdL,3)+' (mín. '+fx(s.minL,2)+', máx. '+fx(s.maxL,2)+')<br>a* = '+fx(s.meanA,3)+' ± '+fx(s.sdA,3)+' · b* = '+fx(s.meanB,3)+' ± '+fx(s.sdB,3)+'</span></li>'+
+    '<li><b>5. Concentración</b><span>'+esc(conc)+(kind==='sample'&&cal?'<br>'+esc(cal.eq):'')+'</span></li>'+extra+
+    '</ul><div class="dlg-foot"><button class="btn primary" data-act="closeDlg">Cerrar</button></div>');
+  renderAnalysisPreview(a,$('#dPrev',d));
+}
+
+/* =====================================================================
+   10. EXPORTACIÓN DE ARCHIVOS
+   ===================================================================== */
+const r8=v=>isNum(v)?Number(v.toPrecision(8)):(v==null?'':v);
+function reportTables(){
+  derive();
+  const pr=S.project,cal=pr.calibration,lod=computeLod(pr),unit=cal?cal.unit:stdUnit(pr),p=PARAMS[cal?cal.param:pr.param];
+  const T={};
+  T.summary=[['Proyecto',pr.name],['Identificador',pr.id],['Analista',pr.analyst],['Fecha de creación',pr.createdAt],['Última modificación',pr.updatedAt],['Parámetro CIELAB',p.label+' — '+p.name],['Unidad de concentración',unit],['Notas',pr.notes]];
+  if(cal){
+    const f=cal.fit;
+    T.cal=[['ID de la curva',cal.id],['Fecha de la curva',cal.createdAt],['Método de ajuste',FIT_METHODS[cal.method].label],['Ecuación',cal.eq],[f.method==='linear'?'Pendiente':'Pendiente en el origen',r8(f.slope)],['Intercepto',r8(f.intercept)],['R²',r8(f.r2)],['Número de puntos',f.n],['Error típico s(y/x)',r8(f.syx)],['Rango de concentración',r8(f.xmin)+' – '+r8(f.xmax)+' '+cal.unit],['Rango de '+p.label,r8(f.ymin)+' – '+r8(f.ymax)],['Blanco incluido en el ajuste',cal.includeBlank?'Sí':'No'],['Coeficientes (orden ascendente)',f.coef.map(r8).join(' ; ')]];
+  }else T.cal=[['Curva de calibración','No guardada']];
+  if(lod.ok)T.lod=[['Método',LOD_METHODS[lod.method].label],['Fórmula',lod.formula],['Factor k',r8(lod.k)],['Valor del blanco ('+p.label+')',r8(lod.blankValue)],['Desviación estándar del blanco',r8(lod.blankSd)],['σ utilizada ('+lod.sigmaLabel+')',r8(lod.sigma)],['Pendiente de la curva',r8(lod.slope)],['LOD',r8(lod.lod)],['Unidad de concentración',lod.unit]];
+  else T.lod=[['Límite de detección','No disponible: '+lod.errors.join(' ')]];
+  T.stdHead=['Estándar','Concentración','Unidad','L* promedio','Desviación estándar L*','a* promedio','b* promedio','Píxeles analizados','ID de análisis','Imagen original','SHA-256','Fecha de análisis'];
+  T.stdRows=[];
+  const add=(name,c,u,a)=>{const s=a.stats;T.stdRows.push([name,c,u,r8(s.meanL),r8(s.sdL),r8(s.meanA),r8(s.meanB),s.n,a.id,a.image.name,a.image.sha256||'',a.createdAt])};
+  if(pr.blank)add(pr.blank.name||'Blanco',0,unit,pr.blank);
+  pr.standards.forEach(s=>add(s.code,s.conc,s.unit,s.analysis));
+  T.smpHead=['Código','ID de análisis','Imagen original','SHA-256','Región de interés','L* promedio','Desviación estándar L*','L* mínimo','L* máximo','a* promedio','b* promedio','Píxeles analizados','Concentración calculada','Unidad','Fuera del rango de calibración','Por debajo del LOD','Observaciones','ID de curva','Fecha de análisis'];
+  T.smpRows=pr.samples.map(sm=>{const s=sm.analysis.stats,r=sm.result||{flags:[]};
+    return [sm.code,sm.analysis.id,sm.analysis.image.name,sm.analysis.image.sha256||'',roiDesc(sm.analysis.roi),r8(s.meanL),r8(s.sdL),r8(s.minL),r8(s.maxL),r8(s.meanA),r8(s.meanB),s.n,r8(r.conc),r.unit||'',r.flags.indexOf('fuera_rango')>=0?'Sí':'No',r.flags.indexOf('bajo_lod')>=0?'Sí':'No',obsText(sm),r.calibrationId||'',sm.analysis.createdAt]});
+  return T;
+}
+function buildCSV(){
+  const T=reportTables(),q=v=>{if(v==null)return '';const s=String(v);return /[",\n;]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s},row=a=>a.map(q).join(',');
+  const L=[];
+  L.push('# Proyecto');T.summary.forEach(r=>L.push(row(r)));
+  L.push('','# Curva de calibración');T.cal.forEach(r=>L.push(row(r)));
+  L.push('','# Límite de detección');T.lod.forEach(r=>L.push(row(r)));
+  L.push('','# Estándares');L.push(row(T.stdHead));T.stdRows.forEach(r=>L.push(row(r)));
+  L.push('','# Muestras');L.push(row(T.smpHead));T.smpRows.forEach(r=>L.push(row(r)));
+  return '\ufeff'+L.join('\r\n')+'\r\n';
+}
+function buildTXT(){
+  const T=reportTables(),L=[],kv=rows=>rows.forEach(r=>L.push('  '+String(r[0]).padEnd(34)+' '+(r[1]==null?'':r[1])));
+  const tbl=(head,rows)=>{const w=head.map((h,i)=>Math.min(30,Math.max(String(h).length,...rows.map(r=>String(r[i]==null?'':r[i]).length))));
+    const line=r=>'  '+r.map((c,i)=>String(c==null?'':c).slice(0,30).padEnd(w[i])).join('  ');L.push(line(head));L.push('  '+w.map(n=>'-'.repeat(n)).join('  '));rows.forEach(r=>L.push(line(r)))};
+  L.push('ANÁLISIS DE LUMINOSIDAD L* (CIELAB)','='.repeat(40),'');
+  L.push('PROYECTO');kv(T.summary);L.push('','CURVA DE CALIBRACIÓN');kv(T.cal);L.push('','LÍMITE DE DETECCIÓN');kv(T.lod);
+  L.push('','ESTÁNDARES');tbl(['Estándar','Conc.','Unidad','L* prom.','DE L*','Píxeles'],T.stdRows.map(r=>[r[0],r[1],r[2],r[3],r[4],r[7]]));
+  L.push('','MUESTRAS');
+  if(!T.smpRows.length)L.push('  (sin muestras)');
+  else tbl(['Código','L* prom.','DE L*','Píxeles','Conc.','Unidad','Observaciones'],T.smpRows.map(r=>[r[0],r[5],r[6],r[11],r[12],r[13],r[16]]));
+  L.push('','Trazabilidad completa (ID, imagen, SHA-256, región): ver CSV/Excel o el archivo de proyecto.','Generado: '+new Date().toISOString());
+  return L.join('\r\n')+'\r\n';
+}
+function buildXLSX(){
+  const T=reportTables(),wb=XLSX.utils.book_new();
+  const res=[['Proyecto'],...T.summary,[],['Curva de calibración'],...T.cal,[],['Límite de detección'],...T.lod];
+  const ws1=XLSX.utils.aoa_to_sheet(res);ws1['!cols']=[{wch:36},{wch:60}];
+  const ws2=XLSX.utils.aoa_to_sheet([T.stdHead,...T.stdRows]);ws2['!cols']=T.stdHead.map(h=>({wch:Math.max(14,h.length+2)}));
+  const ws3=XLSX.utils.aoa_to_sheet([T.smpHead,...T.smpRows]);ws3['!cols']=T.smpHead.map(h=>({wch:Math.max(14,h.length+2)}));
+  XLSX.utils.book_append_sheet(wb,ws1,'Resumen');XLSX.utils.book_append_sheet(wb,ws2,'Estándares');XLSX.utils.book_append_sheet(wb,ws3,'Muestras');
+  return XLSX.write(wb,{bookType:'xlsx',type:'array'});
+}
+function curveCSV(){
+  const pr=S.project,src=fitForUse(pr),p=PARAMS[src?src.param:pr.param],L=[];
+  const q=v=>{const s=String(v==null?'':v);return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s};
+  L.push('# Curva de calibración — '+pr.name);
+  if(src){const f=src.fit;
+    [['Ecuación',src.eq],['Método',FIT_METHODS[f.method].label],['Pendiente',r8(f.slope)],['Intercepto',r8(f.intercept)],['R²',r8(f.r2)],['Puntos',f.n],['Unidad',src.unit]].forEach(r=>L.push(r.map(q).join(',')))}
+  L.push('','Punto,Concentración,'+p.label+' promedio,Desviación estándar,Píxeles');
+  (src?src.pts:calPoints(pr)).forEach(pt=>L.push([pt.code,r8(pt.x),r8(pt.y),r8(pt.sd),pt.n].map(q).join(',')));
+  return '\ufeff'+L.join('\r\n')+'\r\n';
+}
+async function saveProject(){
+  const pr=S.project;if(!pr){toast('No hay proyecto que guardar.','err');return}
+  const bytes=[pr.blank].concat(pr.standards.map(s=>s.analysis),pr.samples.map(s=>s.analysis)).filter(Boolean).reduce((n,a)=>n+((a.image&&a.image.dataUrl)?a.image.dataUrl.length:0),0);
+  openDlg('<h2>Guardar proyecto</h2><p style="margin-top:8px">Se guardará un archivo <b>.json</b> con todo el análisis: blanco, estándares, regiones de interés, valores CIELAB, curva, ecuación, R², LOD, resultados y gráficas.</p>'+
+    '<label class="check" style="margin-top:10px"><input type="checkbox" id="incImg" checked> Incluir las imágenes originales (≈ '+fmtBytes(bytes)+')</label>'+
+    '<p class="small muted">Con las imágenes, al cargar el proyecto se puede volver a ver cada región. Sin ellas, se conservan los valores y el SHA-256 de cada imagen.</p>'+
+    '<div class="dlg-foot"><button class="btn" data-act="closeDlg">Cancelar</button><button class="btn primary" id="doSave">Guardar archivo</button></div>');
+  $('#doSave').onclick=async()=>{
+    const inc=$('#incImg').checked;closeDlg();derive();
+    let graphs={};try{graphs={calibration:chartDataURL('cal'),final:chartDataURL('final')}}catch(e){}
+    const data={format:'cielab-lab-project',version:1,savedAt:nowISO(),app:'Análisis de luminosidad L* (CIELAB)',project:pr,graphs:graphs};
+    const json=JSON.stringify(data,(k,v)=>(!inc&&k==='dataUrl')?undefined:v);
+    if(await saveFile(slug(pr.name)+'_'+stamp()+'.json',json,'application/json')){S.dirty=false;renderDirty()}
+  };
+}
+
+/* =====================================================================
+   11. ACCIONES Y EVENTOS
+   ===================================================================== */
+const mountWb=(kind,allowed)=>{
+  const m=$('#wbMount');if(!m)return;
+  openWorkbench(m,{kind:kind,allowed:allowed,onDone:()=>renderView()});
+  m.scrollIntoView({behavior:'smooth',block:'start'});
+};
+const ACT={
+  toHome(){S.newMode=true;go('home')},
+  loadProj(){$('#projFile').click()},
+  cancelNew(){S.newMode=false;renderView();renderChrome()},
+  async createProject(){
+    const name=$('#pName').value.trim(),unit=$('#pUnit').value.trim();
+    if(!name){toast('Escriba un nombre para el proyecto.','err');$('#pName').setAttribute('aria-invalid','true');$('#pName').focus();return}
+    if(!unit){toast('Indique la unidad de concentración.','err');$('#pUnit').setAttribute('aria-invalid','true');return}
+    if(S.project&&S.dirty){const ok=await askConfirm('Descartar cambios sin guardar','El proyecto actual tiene cambios sin guardar y se cerrará al crear el nuevo.','Crear proyecto nuevo',true);if(!ok)return}
+    S.project=newProject({name:name,unit:unit,analyst:$('#pAnalyst').value.trim(),notes:$('#pNotes').value.trim(),param:$('#pParam').value});
+    S.newMode=false;S.dirty=true;S.flags={resultsSeen:false,exported:false};S.view='calib';renderView();renderChrome();window.scrollTo(0,0);toast('Proyecto creado. Empiece cargando el blanco.','ok');
+  },
+  saveInfo(){
+    const pr=S.project,name=$('#pName').value.trim();
+    if(!name){toast('El nombre no puede estar vacío.','err');return}
+    pr.name=name;pr.analyst=$('#pAnalyst').value.trim();pr.notes=$('#pNotes').value.trim();
+    const u=$('#pUnit').value.trim();if(!pr.standards.length&&u)pr.unit=u;
+    touch();toast('Datos del proyecto actualizados.','ok');
+  },
+  continueFlow(){go(nextView())},
+  addBlank(){mountWb('blank',['blank','standard'])},
+  addStd(){mountWb('standard',['blank','standard'])},
+  async delStd(t){
+    const pr=S.project,st=pr.standards.find(s=>s.id===t.dataset.id);if(!st)return;
+    if(!await askConfirm('Quitar estándar','¿Quitar el estándar «'+esc(st.code)+'» de la curva? Las imágenes originales no se modifican.','Quitar',true))return;
+    pr.standards=pr.standards.filter(s=>s.id!==st.id);touch();renderView();
+  },
+  viewA(t){showDetail(t.dataset.kind,t.dataset.id)},
+  saveCal(){if(saveCalibration()){toast('Curva guardada.','ok');renderFit();renderStdTable()}else toast('No se puede guardar: revise los avisos.','err')},
+  async pngCal(){const b=await chartBlob('cal');if(b)saveFile('curva-calibracion_'+slug(S.project.name)+'.png',b)},
+  csvCal(){saveFile('curva-calibracion_'+slug(S.project.name)+'.csv',curveCSV(),'text/csv')},
+  moreSample(){const wb=mountSampleWb();if(wb)wb.el.file.click()},
+  noMore(){go('results')},
+  viewSample(t){showDetail('sample',t.dataset.id)},
+  async delSample(t){
+    const pr=S.project,s=pr.samples.find(x=>x.id===t.dataset.id);if(!s)return;
+    if(!await askConfirm('Quitar muestra','¿Quitar la muestra «'+esc(s.code)+'» de los resultados?','Quitar',true))return;
+    pr.samples=pr.samples.filter(x=>x.id!==s.id);touch();renderView();
+  },
+  lodK(t){S.project.lod.k=parseFloat(t.dataset.k);refreshResults();touch();renderView()},
+  closeDlg(){closeDlg()},
+  saveProject(){saveProject()},
+  exTxt(){saveFile('resultados_'+slug(S.project.name)+'_'+stamp()+'.txt',buildTXT(),'text/plain');S.flags.exported=true;renderSteps()},
+  exCsv(){saveFile('resultados_'+slug(S.project.name)+'_'+stamp()+'.csv',buildCSV(),'text/csv');S.flags.exported=true;renderSteps()},
+  exXlsx(){
+    if(typeof XLSX==='undefined'){toast('No se pudo cargar la librería de Excel. Use la exportación CSV.','err');return}
+    try{saveFile('resultados_'+slug(S.project.name)+'_'+stamp()+'.xlsx',new Blob([buildXLSX()],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));S.flags.exported=true;renderSteps()}
+    catch(e){toast('No se pudo generar el archivo de Excel.','err')}
+  },
+  async exPngCal(){const b=await chartBlob('cal');if(b){saveFile('grafica-calibracion_'+slug(S.project.name)+'.png',b);S.flags.exported=true;renderSteps()}else toast('No hay datos para graficar.','err')},
+  async exPngFinal(){const b=await chartBlob('final');if(b){saveFile('grafica-final_'+slug(S.project.name)+'.png',b);S.flags.exported=true;renderSteps()}else toast('Se necesita una curva de calibración para graficar.','err')}
+};
+const BIND={
+  calParam(t){const pr=S.project;pr.param=t.value;touch();renderStdTable();renderFit()},
+  calMethod(t){S.project.fitConfig.method=t.value;touch();renderFit()},
+  calIncl(t){S.project.fitConfig.includeBlank=t.checked;touch();renderStdTable();renderFit()},
+  stdConc(t){
+    const st=S.project.standards.find(s=>s.id===t.dataset.id);if(!st)return;
+    const n=parseNum(t.value);
+    if(!isNum(n)||n<0){toast('Concentración no válida: escriba un número mayor o igual que 0.','err');t.value=String(st.conc);return}
+    st.conc=n;touch();renderFit();
+  },
+  obs(t){const s=S.project.samples.find(x=>x.id===t.dataset.id);if(s){s.obs=t.value.trim();touch()}},
+  lodMethod(t){const pr=S.project;pr.lod.method=t.value;pr.lod.k=LOD_METHODS[t.value].k;refreshResults();touch();renderView()},
+  lodK(t){const k=parseNum(t.value);if(!isNum(k)||k<=0){toast('El factor k debe ser un número positivo.','err');t.value=String(S.project.lod.k);return}S.project.lod.k=k;refreshResults();touch();renderView()},
+  gErr(t){S.graphOpts.err=t.checked;S.redraw&&S.redraw()},
+  gLod(t){S.graphOpts.lod=t.checked;S.redraw&&S.redraw()},
+  gLabels(t){S.graphOpts.labels=t.checked;S.redraw&&S.redraw()}
+};
+document.addEventListener('click',e=>{
+  const n=e.target.closest('[data-nav]');
+  if(n){const id=n.dataset.nav;if(id==='home'&&!S.project){S.view='home';renderView();renderChrome();return}go(id);return}
+  const t=e.target.closest('[data-act]');if(!t||t.disabled)return;
+  const f=ACT[t.dataset.act];if(f)f(t,e);
+});
+document.addEventListener('change',e=>{const t=e.target.closest('[data-bind]');if(!t)return;const f=BIND[t.dataset.bind];if(f)f(t,e)});
+$('#btnSave').addEventListener('click',()=>{if(!S.project)toast('Cree o cargue un proyecto primero.','err');else saveProject()});
+$('#projFile').addEventListener('change',async e=>{
+  const f=e.target.files[0];e.target.value='';if(!f)return;
+  if(S.project&&S.dirty&&!await askConfirm('Descartar cambios sin guardar','El proyecto actual tiene cambios sin guardar y se cerrará al cargar otro.','Cargar de todos modos',true))return;
+  try{
+    const data=JSON.parse(await f.text()),pr=data&&data.project;
+    if(!data||data.format!=='cielab-lab-project'||!pr||!Array.isArray(pr.standards))throw new Error('formato');
+    pr.samples=pr.samples||[];pr.param=PARAMS[pr.param]?pr.param:'L';
+    pr.fitConfig=Object.assign({method:'linear',includeBlank:true},pr.fitConfig||{});if(!FIT_METHODS[pr.fitConfig.method])pr.fitConfig.method='linear';
+    pr.lod=Object.assign({method:'blank_sd',k:3},pr.lod||{});if(!LOD_METHODS[pr.lod.method])pr.lod={method:'blank_sd',k:3};
+    const all=[pr.blank].concat(pr.standards.map(s=>s.analysis),pr.samples.map(s=>s.analysis)).filter(Boolean);
+    if(all.some(a=>!a.stats||!isNum(a.stats.meanL)||!a.roi||!a.image))throw new Error('análisis');
+    S.project=pr;S.newMode=false;S.dirty=false;S.flags={resultsSeen:false,exported:false};S.live=null;
+    S.view=nextView();renderView();renderChrome();window.scrollTo(0,0);
+    toast('Proyecto «'+pr.name+'» cargado.'+(all.some(a=>!a.image.dataUrl)?' El archivo no incluye las imágenes originales.':''),'ok');
+  }catch(err){toast('No se pudo cargar: el archivo no es un proyecto válido.','err')}
+});
+window.addEventListener('beforeunload',e=>{if(S.dirty&&S.project){e.preventDefault();e.returnValue=''}});
+let _rz=null;
+window.addEventListener('resize',()=>{clearTimeout(_rz);_rz=setTimeout(()=>{S.redraw&&S.redraw();const wb=WB.active;if(wb&&wb.stats)wbRenderStats(wb)},150)});
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{S.redraw&&S.redraw()});
+$('#brandMark').style.background=RAMP;
+renderChrome();renderView();
+</script></body></html>
